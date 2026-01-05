@@ -1,0 +1,32 @@
+{
+  "name": "obra-social",
+  "version": "1.0.0",
+  "description": "Api para administracion y gestion de una obra social",
+  "main": "index.js",
+  "scripts": {
+    "dev": "nodemon src/main.js",
+    "start": "node src/main.js",
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "db": "node src/reiniciarDB.js",
+    "gendoc": "rm -f swagger-output.json && node swagger.js",
+    "start:doc": "npm run gendoc && npm run start"
+  },
+  "author": "Gabriel Ledezma",
+  "license": "ISC",
+  "devDependencies": {
+    "eslint": "^9.35.0",
+    "nodemon": "^3.1.10",
+    "sequelize-cli": "^6.6.3",
+    "swagger-autogen": "^2.23.7"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dayjs": "^1.11.19",
+    "dotenv": "^16.5.0",
+    "express": "^5.1.0",
+    "pdfkit-table": "^0.1.99",
+    "swagger-ui-express": "^5.0.1",
+    "mongoose": "^8.15.0",
+    "redis": "^5.5.6"
+  }
+}

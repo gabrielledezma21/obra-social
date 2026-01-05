@@ -1,0 +1,1922 @@
+{
+  "swagger": "2.0",
+  "info": {
+    "title": "MedIntegral API",
+    "description": "Documentación de la API para la gestión de afiliados, prestadores médicos y sus agendas de turnos.",
+    "version": "1.0.0"
+  },
+  "host": "localhost:3002",
+  "basePath": "/",
+  "tags": [
+    {
+      "name": "Afiliados"
+    },
+    {
+      "name": "Prestadores"
+    },
+    {
+      "name": "Agendas de Turnos"
+    },
+    {
+      "name": "Provincias"
+    },
+    {
+      "name": "Planes Medicos"
+    },
+    {
+      "name": "Parentescos"
+    },
+    {
+      "name": "Tipos de Documentos"
+    },
+    {
+      "name": "Situaciones Terapeuticas"
+    },
+    {
+      "name": "Especialidades"
+    },
+    {
+      "name": "Dashboard"
+    }
+  ],
+  "schemes": [
+    "http"
+  ],
+  "paths": {
+    "/api/provincias": {
+      "get": {
+        "tags": [
+          "Provincias"
+        ],
+        "description": "",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/especialidades": {
+      "get": {
+        "tags": [
+          "Especialidades"
+        ],
+        "description": "",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/prestadores": {
+      "post": {
+        "tags": [
+          "Prestadores"
+        ],
+        "description": "",
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "description": "Datos del Prestador",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/PrestadorInput"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Created"
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "Prestadores"
+        ],
+        "description": "",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/prestadores/listado": {
+      "get": {
+        "tags": [
+          "Prestadores"
+        ],
+        "description": "",
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "type": "string"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "type": "string"
+          },
+          {
+            "name": "textInputSearch",
+            "in": "query",
+            "type": "string"
+          },
+          {
+            "name": "tipoPrestador",
+            "in": "query",
+            "type": "string"
+          },
+          {
+            "name": "especialidad",
+            "in": "query",
+            "type": "string"
+          },
+          {
+            "name": "localidad",
+            "in": "query",
+            "type": "string"
+          },
+          {
+            "name": "provincia",
+            "in": "query",
+            "type": "string"
+          },
+          {
+            "name": "creacionDesde",
+            "in": "query",
+            "type": "string"
+          },
+          {
+            "name": "creacionHasta",
+            "in": "query",
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/prestadores/localidades": {
+      "get": {
+        "tags": [
+          "Prestadores"
+        ],
+        "description": "",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/prestadores/centros-medicos": {
+      "get": {
+        "tags": [
+          "Prestadores"
+        ],
+        "description": "",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/prestadores/provincias": {
+      "get": {
+        "tags": [
+          "Prestadores"
+        ],
+        "description": "",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/prestadores/{id}": {
+      "get": {
+        "tags": [
+          "Prestadores"
+        ],
+        "description": "",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Prestadores"
+        ],
+        "description": "",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/prestadores/{id}/datos-personales": {
+      "put": {
+        "tags": [
+          "Prestadores"
+        ],
+        "description": "",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "description": "Datos Personales del Prestador",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/PrestadorDatosPersonalesUpdateInput"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/prestadores/{id}/lugares-atencion": {
+      "put": {
+        "tags": [
+          "Prestadores"
+        ],
+        "description": "",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "description": "Lugares de Atencion del Prestador",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/PrestadorLugaresAtencionUpdateInput"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/prestadores/{id}/especialidades": {
+      "put": {
+        "tags": [
+          "Prestadores"
+        ],
+        "description": "",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "description": "Especialidades del Prestador",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/PrestadorEspecialidadesUpdateInput"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/prestadores/{id}/centro-medico": {
+      "put": {
+        "tags": [
+          "Prestadores"
+        ],
+        "description": "",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "description": "Datos del Prestador relacionados a Centro Medico",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/PrestadorCentroMedicoUpdateInput"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/agenda-turnos": {
+      "post": {
+        "tags": [
+          "Agendas de Turnos"
+        ],
+        "description": "",
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "description": "Datos de la Agenda de Turnos",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/AgendaDeTurnosInput"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Created"
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "Agendas de Turnos"
+        ],
+        "description": "",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/agenda-turnos/prestador/{prestadorId}": {
+      "get": {
+        "tags": [
+          "Agendas de Turnos"
+        ],
+        "description": "",
+        "parameters": [
+          {
+            "name": "prestadorId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/agenda-turnos/localidades": {
+      "get": {
+        "tags": [
+          "Agendas de Turnos"
+        ],
+        "description": "",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/agenda-turnos/provincias": {
+      "get": {
+        "tags": [
+          "Agendas de Turnos"
+        ],
+        "description": "",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/agenda-turnos/listado": {
+      "get": {
+        "tags": [
+          "Agendas de Turnos"
+        ],
+        "description": "",
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "type": "string"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "type": "string"
+          },
+          {
+            "name": "textInputSearch",
+            "in": "query",
+            "type": "string"
+          },
+          {
+            "name": "provincia",
+            "in": "query",
+            "type": "string"
+          },
+          {
+            "name": "localidad",
+            "in": "query",
+            "type": "string"
+          },
+          {
+            "name": "dia",
+            "in": "query",
+            "type": "string"
+          },
+          {
+            "name": "duracion",
+            "in": "query",
+            "type": "string"
+          },
+          {
+            "name": "horaInicio",
+            "in": "query",
+            "type": "string"
+          },
+          {
+            "name": "horaFin",
+            "in": "query",
+            "type": "string"
+          },
+          {
+            "name": "creacionDesde",
+            "in": "query",
+            "type": "string"
+          },
+          {
+            "name": "creacionHasta",
+            "in": "query",
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/agenda-turnos/prestadores-con-agenda-incompleta": {
+      "get": {
+        "tags": [
+          "Agendas de Turnos"
+        ],
+        "description": "",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/agenda-turnos/{id}": {
+      "get": {
+        "tags": [
+          "Agendas de Turnos"
+        ],
+        "description": "",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Agendas de Turnos"
+        ],
+        "description": "",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/agenda-turnos/{id}/horarios": {
+      "put": {
+        "tags": [
+          "Agendas de Turnos"
+        ],
+        "description": "",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "description": "Horarios de la Agenda de Turnos",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/AgendaDeTurnosHorariosUpdateInput"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/agenda-turnos/{id}/especialidades": {
+      "put": {
+        "tags": [
+          "Agendas de Turnos"
+        ],
+        "description": "",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "description": "Especialidades de la Agenda de Turnos",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/AgendaDeTurnosEspecialidadesUpdateInput"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/afiliados": {
+      "post": {
+        "tags": [
+          "Afiliados"
+        ],
+        "description": "",
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "description": "Datos del Afiliado",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/AfiliadoInput"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Created"
+          },
+          "400": {
+            "description": "Bad Request"
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "Afiliados"
+        ],
+        "description": "",
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "type": "string"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "type": "string"
+          },
+          {
+            "name": "textInputSearch",
+            "in": "query",
+            "type": "string"
+          },
+          {
+            "name": "tipoDocumento",
+            "in": "query",
+            "type": "string"
+          },
+          {
+            "name": "nroAfiliado",
+            "in": "query",
+            "type": "string"
+          },
+          {
+            "name": "fechaNacimiento",
+            "in": "query",
+            "type": "string"
+          },
+          {
+            "name": "planMedico",
+            "in": "query",
+            "type": "string"
+          },
+          {
+            "name": "provincia",
+            "in": "query",
+            "type": "string"
+          },
+          {
+            "name": "localidad",
+            "in": "query",
+            "type": "string"
+          },
+          {
+            "name": "telefono",
+            "in": "query",
+            "type": "string"
+          },
+          {
+            "name": "email",
+            "in": "query",
+            "type": "string"
+          },
+          {
+            "name": "vigenciaDesde",
+            "in": "query",
+            "type": "string"
+          },
+          {
+            "name": "vigenciaHasta",
+            "in": "query",
+            "type": "string"
+          },
+          {
+            "name": "creacionDesde",
+            "in": "query",
+            "type": "string"
+          },
+          {
+            "name": "creacionHasta",
+            "in": "query",
+            "type": "string"
+          },
+          {
+            "name": "estado",
+            "in": "query",
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/afiliados/{id}/dependientes": {
+      "post": {
+        "tags": [
+          "Afiliados"
+        ],
+        "description": "",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "description": "Datos de los Dependientes del Afiliado",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/AfiliadoDependientesInput"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Created"
+          },
+          "400": {
+            "description": "Bad Request"
+          }
+        }
+      }
+    },
+    "/api/afiliados/localidades": {
+      "get": {
+        "tags": [
+          "Afiliados"
+        ],
+        "description": "",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/afiliados/provincias": {
+      "get": {
+        "tags": [
+          "Afiliados"
+        ],
+        "description": "",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/afiliados/{id}": {
+      "get": {
+        "tags": [
+          "Afiliados"
+        ],
+        "description": "",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "404": {
+            "description": "Not Found"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Afiliados"
+        ],
+        "description": "",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "fechaBaja": {
+                  "example": "any"
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/afiliados/{id}/reporte": {
+      "get": {
+        "tags": [
+          "Afiliados"
+        ],
+        "description": "",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "404": {
+            "description": "Not Found"
+          }
+        }
+      }
+    },
+    "/api/afiliados/{id}/fecha-baja": {
+      "put": {
+        "tags": [
+          "Afiliados"
+        ],
+        "description": "",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "description": "Fecha de Baja del Afiliado",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/AfiliadoFechaBajaUpdateInput"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/afiliados/{id}/reincorporar": {
+      "put": {
+        "tags": [
+          "Afiliados"
+        ],
+        "description": "",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "description": "Reincorporar al Afiliado",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/AfiliadoReincorporarUpdateInput"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/afiliados/{id}/datos-personales": {
+      "put": {
+        "tags": [
+          "Afiliados"
+        ],
+        "description": "",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "description": "Datos Personales del Afiliado",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/AfiliadoDatosPersonalesUpdateInput"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "Bad Request"
+          }
+        }
+      }
+    },
+    "/api/afiliados/{id}/plan-medico": {
+      "put": {
+        "tags": [
+          "Afiliados"
+        ],
+        "description": "",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "description": "Datos del Plan Médico del Afiliado",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/AfiliadoPlanMedicoUpdateInput"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/afiliados/{id}/datos-contacto": {
+      "put": {
+        "tags": [
+          "Afiliados"
+        ],
+        "description": "",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "description": "Datos de Contacto del Afiliado",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/AfiliadoDatosContactoUpdateInput"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/afiliados/{id}/direcciones": {
+      "put": {
+        "tags": [
+          "Afiliados"
+        ],
+        "description": "",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "description": "Datos de las Direcciones del Afiliado",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/AfiliadoDireccionesUpdateInput"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/tipo-documentos": {
+      "get": {
+        "tags": [
+          "Tipos de Documentos"
+        ],
+        "description": "",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/situaciones-terapeuticas": {
+      "get": {
+        "tags": [
+          "Situaciones Terapeuticas"
+        ],
+        "description": "",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/planes-medicos": {
+      "get": {
+        "tags": [
+          "Planes Medicos"
+        ],
+        "description": "",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/parentescos": {
+      "get": {
+        "tags": [
+          "Parentescos"
+        ],
+        "description": "",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/dashboard/afiliados-totales": {
+      "get": {
+        "tags": [
+          "Dashboard"
+        ],
+        "description": "",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/dashboard/prestadores-totales": {
+      "get": {
+        "tags": [
+          "Dashboard"
+        ],
+        "description": "",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/dashboard/agendas-totales": {
+      "get": {
+        "tags": [
+          "Dashboard"
+        ],
+        "description": "",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/dashboard/cantidad-especialidades": {
+      "get": {
+        "tags": [
+          "Dashboard"
+        ],
+        "description": "",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/dashboard/prestadores-por-localidad": {
+      "get": {
+        "tags": [
+          "Dashboard"
+        ],
+        "description": "",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/dashboard/prestadores-por-especialidad": {
+      "get": {
+        "tags": [
+          "Dashboard"
+        ],
+        "description": "",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/dashboard/afiliados-con-baja": {
+      "get": {
+        "tags": [
+          "Dashboard"
+        ],
+        "description": "",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/dashboard/prestadores-sin-agenda": {
+      "get": {
+        "tags": [
+          "Dashboard"
+        ],
+        "description": "",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/dashboard/planes-medicos-por-mes": {
+      "get": {
+        "tags": [
+          "Dashboard"
+        ],
+        "description": "",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    }
+  },
+  "definitions": {
+    "AfiliadoInput": {
+      "type": "object",
+      "properties": {
+        "tipoDocumentoId": {
+          "type": "number",
+          "example": 1
+        },
+        "numeroDocumento": {
+          "type": "string",
+          "example": "12345678"
+        },
+        "fechaNacimiento": {
+          "type": "string",
+          "example": "1990-01-01"
+        },
+        "nombre": {
+          "type": "string",
+          "example": "Juan"
+        },
+        "apellido": {
+          "type": "string",
+          "example": "Perez"
+        },
+        "planId": {
+          "type": "number",
+          "example": 1
+        },
+        "vigenciaInicio": {
+          "type": "string",
+          "example": "2023-01-01"
+        },
+        "vigenciaFin": {
+          "type": "string",
+          "example": "2024-01-01"
+        },
+        "tieneGrupoFamiliar": {
+          "type": "boolean",
+          "example": true
+        },
+        "grupoFamiliar": {
+          "type": "array",
+          "example": [],
+          "items": {}
+        },
+        "emails": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "direccion": {
+                "type": "string",
+                "example": "jp@gmail.com"
+              }
+            }
+          }
+        },
+        "telefonos": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "numero": {
+                "type": "string",
+                "example": "987654321"
+              }
+            }
+          }
+        },
+        "direcciones": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "calle": {
+                "type": "string",
+                "example": "Calle Falsa"
+              },
+              "altura": {
+                "type": "number",
+                "example": 123
+              },
+              "pisoDepto": {
+                "type": "string",
+                "example": "1A"
+              },
+              "codigoPostal": {
+                "type": "string",
+                "example": "C1234"
+              },
+              "localidad": {
+                "type": "string",
+                "example": "Springfield"
+              },
+              "provincia": {
+                "type": "number",
+                "example": 1
+              }
+            }
+          }
+        },
+        "tieneSituacionTerapeutica": {
+          "type": "boolean",
+          "example": true
+        },
+        "situacionesTerapeuticas": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "situacionId": {
+                "type": "number",
+                "example": 1
+              },
+              "fechaInicio": {
+                "type": "string",
+                "example": "2020-01-01"
+              },
+              "fechaFin": {
+                "type": "string",
+                "example": "2025-01-01"
+              }
+            }
+          }
+        }
+      }
+    },
+    "AfiliadoDependientesInput": {
+      "type": "object",
+      "properties": {
+        "tipoDocumentoId": {
+          "type": "number",
+          "example": 2
+        },
+        "numeroDocumento": {
+          "type": "string",
+          "example": "87654321"
+        },
+        "fechaNacimiento": {
+          "type": "string",
+          "example": "2010-05-15"
+        },
+        "nombre": {
+          "type": "string",
+          "example": "Ana"
+        },
+        "apellido": {
+          "type": "string",
+          "example": "Perez"
+        },
+        "parentescoId": {
+          "type": "string",
+          "example": "2"
+        },
+        "vigenciaInicio": {
+          "type": "string",
+          "example": "2023-01-01"
+        },
+        "vigenciaFin": {
+          "type": "string",
+          "example": "2024-01-01"
+        },
+        "emails": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "direccion": {
+                "type": "string",
+                "example": "ap@email.com"
+              }
+            }
+          }
+        },
+        "telefonos": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "numero": {
+                "type": "string",
+                "example": "123123123"
+              }
+            }
+          }
+        },
+        "direcciones": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "calle": {
+                "type": "string",
+                "example": "Calle Verdadera"
+              },
+              "altura": {
+                "type": "number",
+                "example": 123
+              },
+              "pisoDepto": {
+                "type": "string",
+                "example": "1A"
+              },
+              "codigoPostal": {
+                "type": "string",
+                "example": "C1234"
+              },
+              "localidad": {
+                "type": "string",
+                "example": "Springfield"
+              },
+              "provincia": {
+                "type": "number",
+                "example": 1
+              }
+            }
+          }
+        },
+        "tieneSituacionTerapeutica": {
+          "type": "boolean",
+          "example": false
+        },
+        "situacionesTerapeuticas": {
+          "type": "array",
+          "example": [],
+          "items": {}
+        }
+      }
+    },
+    "PrestadorInput": {
+      "type": "object",
+      "properties": {
+        "nombre": {
+          "type": "string",
+          "example": "Algun Nombre"
+        },
+        "cuilCuit": {
+          "type": "string",
+          "example": "12123456781"
+        },
+        "esCentroMedico": {
+          "type": "boolean",
+          "example": false
+        },
+        "integraCentroMedico": {
+          "type": "boolean",
+          "example": true
+        },
+        "centroMedicoQueIntegra": {
+          "type": "number",
+          "example": 2
+        },
+        "especialidades": {
+          "type": "array",
+          "example": [
+            1,
+            2,
+            3
+          ],
+          "items": {
+            "type": "number"
+          }
+        },
+        "emails": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "direccion": {
+                "type": "string",
+                "example": "nombre@gmail.com"
+              }
+            }
+          }
+        },
+        "telefonos": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "numero": {
+                "type": "string",
+                "example": "1212345678"
+              }
+            }
+          }
+        },
+        "lugaresAtencion": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "calle": {
+                "type": "string",
+                "example": "Avenida Siempre Viva"
+              },
+              "altura": {
+                "type": "number",
+                "example": 456
+              },
+              "pisoDepto": {},
+              "codigoPostal": {
+                "type": "string",
+                "example": "C456"
+              },
+              "localidad": {
+                "type": "string",
+                "example": "Cerro Corto"
+              },
+              "provincia": {
+                "type": "number",
+                "example": 1
+              },
+              "horarios": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "horaInicio": {
+                      "type": "string",
+                      "example": "12:00"
+                    },
+                    "horaFin": {
+                      "type": "string",
+                      "example": "18:00"
+                    },
+                    "dias": {
+                      "type": "array",
+                      "example": [
+                        "Viernes"
+                      ],
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "AgendaDeTurnosInput": {
+      "type": "object",
+      "properties": {
+        "prestadorId": {
+          "type": "number",
+          "example": 4
+        },
+        "especialidadId": {
+          "type": "number",
+          "example": 2
+        },
+        "lugaratencionId": {
+          "type": "number",
+          "example": 4
+        },
+        "horarios": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "horaInicio": {
+                "type": "string",
+                "example": "10:00"
+              },
+              "horaFin": {
+                "type": "string",
+                "example": "12:00"
+              },
+              "duracion": {
+                "type": "number",
+                "example": 30
+              },
+              "dias": {
+                "type": "array",
+                "example": [
+                  "Lunes"
+                ],
+                "items": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "AfiliadoDatosPersonalesUpdateInput": {
+      "type": "object",
+      "properties": {
+        "tipoDocumentoId": {
+          "type": "number",
+          "example": 1
+        },
+        "numeroDocumento": {
+          "type": "string",
+          "example": "12345678"
+        },
+        "nombre": {
+          "type": "string",
+          "example": "Nuevo Nombre"
+        },
+        "apellido": {
+          "type": "string",
+          "example": "Nuevo Apellido"
+        },
+        "fechaNacimiento": {
+          "type": "string",
+          "example": "1991-02-02"
+        },
+        "vigenciaInicio": {
+          "type": "string",
+          "example": "2023-01-01"
+        }
+      }
+    },
+    "AfiliadoPlanMedicoUpdateInput": {
+      "type": "object",
+      "properties": {
+        "planId": {
+          "type": "number",
+          "example": 2
+        }
+      }
+    },
+    "AfiliadoDatosContactoUpdateInput": {
+      "type": "object",
+      "properties": {
+        "emails": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "direccion": {
+                "type": "string",
+                "example": "nuevoemail2@gmail.com"
+              }
+            }
+          }
+        },
+        "telefonos": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "numero": {
+                "type": "string",
+                "example": "8888888888"
+              }
+            }
+          }
+        }
+      }
+    },
+    "AfiliadoDireccionesUpdateInput": {
+      "type": "object",
+      "properties": {
+        "direcciones": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "calle": {
+                "type": "string",
+                "example": "Calle Nueva"
+              },
+              "altura": {
+                "type": "number",
+                "example": 456
+              },
+              "pisoDepto": {
+                "type": "string",
+                "example": "2B"
+              },
+              "codigoPostal": {
+                "type": "string",
+                "example": "C5678"
+              },
+              "localidad": {
+                "type": "string",
+                "example": "Shelbyville"
+              },
+              "provincia": {
+                "type": "number",
+                "example": 2
+              }
+            }
+          }
+        }
+      }
+    },
+    "AfiliadoFechaBajaUpdateInput": {
+      "type": "object",
+      "properties": {
+        "fechaBaja": {
+          "type": "string",
+          "example": "2024-06-30"
+        }
+      }
+    },
+    "AfiliadoReincorporarUpdateInput": {
+      "type": "object",
+      "properties": {
+        "reincorporarGrupoFamiliar": {
+          "type": "boolean",
+          "example": false
+        }
+      }
+    },
+    "PrestadorDatosPersonalesUpdateInput": {
+      "type": "object",
+      "properties": {
+        "nombre": {
+          "type": "string",
+          "example": "nuevo nombre"
+        },
+        "cuilCuit": {
+          "type": "string",
+          "example": "12345654321"
+        },
+        "emails": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "direccion": {
+                "type": "string",
+                "example": "drpepe@gmail.com"
+              }
+            }
+          }
+        },
+        "telefonos": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "numero": {
+                "type": "string",
+                "example": "2222222222"
+              }
+            }
+          }
+        }
+      }
+    },
+    "PrestadorLugaresAtencionUpdateInput": {
+      "type": "object",
+      "properties": {
+        "lugaresAtencion": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "calle": {
+                "type": "string",
+                "example": "Avenida San Martin"
+              },
+              "altura": {
+                "type": "number",
+                "example": 9616
+              },
+              "codigoPostal": {
+                "type": "string",
+                "example": "1746"
+              },
+              "pisoDepto": {
+                "type": "string",
+                "example": "1A"
+              },
+              "localidad": {
+                "type": "string",
+                "example": "Francisco Alvarez"
+              },
+              "provincia": {
+                "type": "number",
+                "example": 1
+              },
+              "horarios": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "horaInicio": {
+                      "type": "string",
+                      "example": "08:00"
+                    },
+                    "horaFin": {
+                      "type": "string",
+                      "example": "20:00"
+                    },
+                    "dias": {
+                      "type": "array",
+                      "example": [
+                        "Lunes"
+                      ],
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "PrestadorEspecialidadesUpdateInput": {
+      "type": "object",
+      "properties": {
+        "especialidades": {
+          "type": "array",
+          "example": [
+            2,
+            3
+          ],
+          "items": {
+            "type": "number"
+          }
+        }
+      }
+    },
+    "PrestadorCentroMedicoUpdateInput": {
+      "type": "object",
+      "properties": {
+        "esCentroMedico": {
+          "type": "boolean",
+          "example": false
+        },
+        "integraCentroMedico": {
+          "type": "boolean",
+          "example": false
+        },
+        "centroMedicoQueIntegra": {}
+      }
+    },
+    "AgendaDeTurnosHorariosUpdateInput": {
+      "type": "object",
+      "properties": {
+        "horarios": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "horaInicio": {
+                "type": "string",
+                "example": "13:00"
+              },
+              "horaFin": {
+                "type": "string",
+                "example": "16:00"
+              },
+              "duracion": {
+                "type": "number",
+                "example": 15
+              },
+              "dias": {
+                "type": "array",
+                "example": [
+                  "Lunes"
+                ],
+                "items": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "AgendaDeTurnosEspecialidadesUpdateInput": {
+      "type": "object",
+      "properties": {
+        "especialidadId": {
+          "type": "number",
+          "example": 4
+        }
+      }
+    }
+  }
+}
