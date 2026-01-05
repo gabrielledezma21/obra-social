@@ -1,5 +1,5 @@
 const mongoose = require('mongoose');
-const { AppError } = require("../exceptions/appError");
+const AppError = require("../exceptions/appError");
 
 // se utiliza para ver que peticion se hizo y que se envio, es para debuggear
 const logRequest = (req, _, next) => {
@@ -15,10 +15,10 @@ const existsAnyByModel = (modelo) => {
             if (!data) {
                 return next(new AppError(`No hay ningun ${modelo.modelName} registrado`, 404, 'NO_HAY_NINGUNO_REGISTRADO'));
             }
+            next();
         } catch (error) {
-            next(error);
+            return next(error);
         }
-        next();
     }
 };
 
@@ -30,10 +30,10 @@ const existsModelById = (modelo) => {
             if (!data) {
                 return next(new AppError(`No hay ningun ${modelo.modelName} con id ${req.params.id}`, 404, 'NO_HAY_NINGUNO_CON_ESE_ID'));
             }
+            next();
         } catch (error) {
-            next(error);
+            return next(error);
         }
-        next();
     }
 };
 
@@ -49,5 +49,5 @@ const validarCamposExactos = (modelo) => {
         next()
     }
 }
-  
+
 module.exports = { logRequest, existsAnyByModel, existsModelById, validarCamposExactos };
