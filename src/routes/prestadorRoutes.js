@@ -27,8 +27,8 @@ router.post('/',
     #swagger.tags = ['Prestadores']
     #swagger.path = '/prestadores'
   */
-  //prestadorMiddleware.notExistsPrestador,
-  //genericMiddleware.validarCamposExactos(Prestador),
+  prestadorMiddleware.notExistsPrestador,
+  genericMiddleware.validarCamposExactos(Prestador),
   prestadorController.createPrestador
 );
 
@@ -39,6 +39,16 @@ router.delete('/:id',
   */
   genericMiddleware.existsModelById(Prestador),
   prestadorController.deletePrestador
+);
+
+router.put('/:id',
+  /* 
+    #swagger.tags = ['Prestadores']
+    #swagger.path = '/prestadores/{id}'
+  */
+  genericMiddleware.existsModelById(Prestador),
+  genericMiddleware.validarCamposExactos(Prestador),
+  prestadorController.updatePrestador
 );
 
 module.exports = router;

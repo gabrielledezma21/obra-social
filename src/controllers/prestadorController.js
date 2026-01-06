@@ -12,13 +12,8 @@ const getPrestadores = async (_, res) => {
     .populate({
       path: 'centrosDeAtencion',
       populate: [
-        {
-          path: 'direccionId',
-          select: 'calle altura localidad provincia' //puedo optar por mostrar solo lo que quiero
-        },
-        {
-          path: 'horarioId'
-        }
+        { path: 'direccionId', select: 'calle altura localidad provincia' }, //puedo optar por mostrar solo lo que quiero
+        { path: 'horarioId' }
       ]
     }
     );
@@ -37,12 +32,8 @@ const getPrestadorById = async (req, res) => {
     .populate({
       path: 'centrosDeAtencion',
       populate: [
-        {
-          path: 'direccionId',
-        },
-        {
-          path: 'horarioId'
-        }
+        { path: 'direccionId' },
+        { path: 'horarioId' }
       ]
     }
     );
@@ -72,4 +63,17 @@ const deletePrestador = async (req, res) => {
   res.status(204).json({});
 }
 
-module.exports = { getPrestadores, getPrestadorById, createPrestador, deletePrestador };
+const updatePrestador = async (req, res) => {
+
+  const prestador = await prestadorService.updatePrestador(req.params.id, req.body);
+
+  await deleteModelCacheById(Prestador, req.params.id);
+  await deleteModelsCache(Prestador);
+  await redisClient.set(`Prestador:${prestador._id}`, JSON.stringify(prestador), { EX: 60 });
+
+  res.status(200).json(prestador);
+}
+
+  
+
+module.exports = { getPrestadores, getPrestadorById, createPrestador, deletePrestador, updatePrestador };

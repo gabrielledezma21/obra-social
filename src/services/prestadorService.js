@@ -33,7 +33,15 @@ const createPrestador = async (data) => {
     }
 };
 
+const updatePrestador = async (id, data) => {
+    try {
+        const prestador = await Prestador.findByIdAndUpdate(id, data, { new: true });
+        return prestador;
+    } catch (error) {
+        throw new AppError(error.message, error.statusCode);
+    }
+};
 
-module.exports = { createPrestador };
+module.exports = { createPrestador, updatePrestador };
 
 
