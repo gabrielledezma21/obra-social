@@ -7,21 +7,21 @@ const agendaSchema = new mongoose.Schema(
     especialidadId: {
       type: Schema.Types.ObjectId,
       ref: 'Especialidad',
-      required: [true, 'El prestador debe tener al menos una especialidad'],
+      required: [true, 'La agenda debe tener una especialidad'],
     },
-    centrosDeAtencionId: {
+    centroDeAtencionId: {
       type: Schema.Types.ObjectId,
       ref: 'CentroDeAtencion',
-      required: [true, 'El prestador debe tener al menos un centro de atencion'],
+      required: [true, 'La agenda debe tener un centro de atencion'],
     },
     prestadorId: {
       type: Schema.Types.ObjectId,
       ref: 'Prestador',
-      required: [true, 'El prestador debe tener al menos un prestador'],
+      required: [true, 'La agenda debe tener un prestador'],
     },
     horario: {
       type: horarioSchema,
-      required: [true, 'El prestador debe tener al menos un horario'],
+      required: [true, 'La agenda debe tener un horario'],
     },
   },
   {
