@@ -1,4 +1,4 @@
-const { prestadorRutas, especialidadRutas } = require("./routes");
+const { prestadorRutas, especialidadRutas, agendaRutas } = require("./routes");
 const { logRequest } = require("./middlewares/genericMiddleware");
 
 const configureApp = (APP) => {
@@ -8,6 +8,7 @@ const configureApp = (APP) => {
   //rutas
   APP.use("/prestadores", prestadorRutas);
   APP.use("/especialidades", especialidadRutas);
+  APP.use("/agendas", agendaRutas);
 
   APP.use(
     (err, req, res, next) => {
