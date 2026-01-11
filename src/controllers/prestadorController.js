@@ -15,8 +15,7 @@ const getPrestadores = async (_, res) => {
         { path: 'direccionId', select: 'calle altura localidad provincia' }, //puedo optar por mostrar solo lo que quiero
         { path: 'horarioId' }
       ]
-    }
-    );
+    });
 
   await redisClient.set('Prestadors:todos', JSON.stringify(prestadores), { EX: 60 });
 

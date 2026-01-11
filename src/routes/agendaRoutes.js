@@ -27,14 +27,14 @@ router.post('/',
     #swagger.tags = ['Agendas']
     #swagger.path = '/agendas'
   */
-  //agendaMiddleware.existsPrestador,
-  //agendaMiddleware.existsCentroAtencion,
-  //agendaMiddleware.existsEspecialidad,
-  //agendaMiddleware.prestadorConEsaEspecialidad,
-  //agendaMiddleware.prestadorAtiendeEnEseCentroAtencion,
-  //agendaMiddleware.prestadorAtiendeEnEseRangoHorario,
-  //agendaMiddleware.horarioDisponible,
-  //agendaMiddleware.notExistsAgenda,
+  agendaMiddleware.existsPrestador,
+  agendaMiddleware.existsCentroAtencion,
+  agendaMiddleware.existsEspecialidad,
+  agendaMiddleware.prestadorConEsaEspecialidad,
+  agendaMiddleware.prestadorAtiendeEnEseCentroAtencion,
+  agendaMiddleware.horarioDentroDelPrestador,
+  agendaMiddleware.horarioLibre,
+  agendaMiddleware.notExistsAgenda,
   genericMiddleware.validarCamposExactos(Agenda),
   agendaController.createAgenda
 );
@@ -54,7 +54,9 @@ router.put('/:id',
     #swagger.path = '/agendas/{id}'
   */
   genericMiddleware.existsModelById(Agenda),
-  genericMiddleware.validarCamposExactos(Agenda),
+  agendaMiddleware.restrictToHorario,
+  agendaMiddleware.horarioDentroDelPrestador,
+  agendaMiddleware.horarioLibre,
   agendaController.updateAgenda
 );
 

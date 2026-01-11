@@ -7,7 +7,7 @@ const createPrestador = async (data) => {
     try {
         // 1. Crear centros de atención (esperando resultados)
         const centrosDeAtencion = await Promise.all(
-            data.centrosDeAtencion.map((centro) =>
+            (data.centrosDeAtencion || []).map((centro) =>
                 centroDeAtencionService.createCentroDeAtencion(centro)
             )
         );

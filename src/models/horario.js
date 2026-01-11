@@ -1,7 +1,7 @@
 const { mongoose } = require("../config/db");
 const { Schema } = require("mongoose");
 const { minutosAString, convertirAMinutos } = require("../utils/conversionesDeHorarios");
-const { AppError } = require("../exceptions/appError");
+const AppError = require("../exceptions/appError");
 
 const bloqueSchema = new mongoose.Schema(
     {

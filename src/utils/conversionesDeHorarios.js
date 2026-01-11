@@ -1,4 +1,4 @@
-const { AppError } = require("../exceptions/appError");
+const AppError = require("../exceptions/appError");
 
 const convertirAMinutos = (horario) => {
     if (typeof horario === 'number') return horario;
