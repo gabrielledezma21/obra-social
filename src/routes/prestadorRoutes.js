@@ -26,6 +26,12 @@ router.post('/',
   /* 
     #swagger.tags = ['Prestadores']
     #swagger.path = '/prestadores'
+    #swagger.parameters['body'] = {
+        in: 'body',
+        description: 'Datos del nuevo prestador',
+        required: true,
+        schema: { $ref: "#/definitions/PrestadorInput" }
+    }
   */
   prestadorMiddleware.notExistsPrestador,
   genericMiddleware.validarCamposExactos(Prestador),

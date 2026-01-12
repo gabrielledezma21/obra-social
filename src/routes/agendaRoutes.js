@@ -26,6 +26,12 @@ router.post('/',
   /* 
     #swagger.tags = ['Agendas']
     #swagger.path = '/agendas'
+    #swagger.parameters['body'] = {
+        in: 'body',
+        description: 'Datos de la nueva agenda',
+        required: true,
+        schema: { $ref: "#/definitions/AgendaInput" }
+    }
   */
   agendaMiddleware.existsPrestador,
   agendaMiddleware.existsCentroAtencion,
