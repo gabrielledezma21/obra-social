@@ -1,8 +1,9 @@
-const { Prestador, Especialidad, Direccion, Horario, CentroDeAtencion, Agenda } = require('./models');
+const { Prestador, Especialidad, Direccion, Horario, CentroDeAtencion, Agenda, Afiliado } = require('./models');
 const { mongo } = require('./config');
 
 // Función para limpiar la base de datos
 const cleanDB = async () => {
+  await Afiliado.deleteMany({});
   await Prestador.deleteMany({});
   await Especialidad.deleteMany({});
   await Direccion.deleteMany({});
@@ -37,13 +38,13 @@ const runSeed = async () => {
     // 2. Crear horarios
     const horario1 = await Horario.create({
       dias: {
-        Lunes:{atiende:true, bloques:[{horaInicio: 480, horaFin: 720}]},
-        Martes:{atiende:true, bloques:[{horaInicio: 480, horaFin: 720}, {horaInicio: 840, horaFin: 1080}]},
-        Miercoles:{atiende:true, bloques:[{horaInicio:480, horaFin:720}]},
-        Jueves:{atiende:false, bloques:[]},
-        Viernes:{atiende:false, bloques:[]},
-        Sabado:{},
-        Domingo:{atiende:false},
+        Lunes: { atiende: true, bloques: [{ horaInicio: 480, horaFin: 720 }] },
+        Martes: { atiende: true, bloques: [{ horaInicio: 480, horaFin: 720 }, { horaInicio: 840, horaFin: 1080 }] },
+        Miercoles: { atiende: true, bloques: [{ horaInicio: 480, horaFin: 720 }] },
+        Jueves: { atiende: false, bloques: [] },
+        Viernes: { atiende: false, bloques: [] },
+        Sabado: {},
+        Domingo: { atiende: false },
       },
       duracionTurno: 20,
     });
@@ -72,8 +73,8 @@ const runSeed = async () => {
     const prestador1 = await Prestador.create({
       nombre: 'Juan Perez',
       cuilCuit: '20345678901',
-      emails: [{direccion:'prestador1@example.com'}, {direccion:'prestador1@outlook.com'}],
-      telefonos: [{numero:'1122334455'}, {numero:'1122334456'}],
+      emails: [{ direccion: 'prestador1@example.com' }, { direccion: 'prestador1@outlook.com' }],
+      telefonos: [{ numero: '1122334455' }, { numero: '1122334456' }],
       especialidades: [especialidad1._id, especialidad2._id],
       centrosDeAtencion: [centroDeAtencion1._id],
       agendas: [],

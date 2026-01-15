@@ -5,6 +5,7 @@ const { Horario } = require('./horario');
 const Especialidad = require('./especialidad');
 const Agenda = require('./agenda');
 const Afiliado = require('./afiliado');
+const SituacionTerapeutica = require('./situacionTerapeutica');
 
 module.exports = {
   Prestador,
@@ -13,5 +14,6 @@ module.exports = {
   Horario,
   Especialidad, 
   Agenda,
-  Afiliado
+  Afiliado,
+  SituacionTerapeutica
 }

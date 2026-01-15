@@ -87,17 +87,17 @@ async function runTests() {
 
         header("TESTING: RUTAS DE AFILIADOS");
 
-        // 1. Crear Afiliado Exitoso
+        // 1. Crear Afiliado Exitoso (con campos minimos para probar auto-generacion)
         const nuevoAfiliado = {
             nombre: 'Test',
             apellido: 'Afiliado',
             tipoDocumento: 'DNI',
             dni: 12345678,
-            numeroAfiliado: 12345,
-            numeroIntegrante: 1,
-            parentesco: 'Titular',
-            plan: 'Plan A',
-            fechaAlta: '2023-01-01',
+            // numeroAfiliado: 12345, // Auto-generated
+            // numeroIntegrante: 1,   // Auto-generated
+            // parentesco: 'Titular', // Auto-generated default
+            // plan: 'Plan A',        // Auto-generated/validated
+            // fechaAlta: '2023-01-01', // Auto-generated default
             emails: [{ direccion: 'test.afiliado@mail.com' }],
             telefonos: [{ numero: '1123456789' }],
             direccion: {

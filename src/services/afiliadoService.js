@@ -22,13 +22,13 @@ const createAfiliado = async (data) => {
         //ver el ultimo numero de afiliado registrado y asignar ese valor mas uno
         const lastAfiliado = await Afiliado.findOne().sort({ numeroAfiliado: -1 });
         const numeroAfiliado = lastAfiliado ? lastAfiliado.numeroAfiliado + 1 : 1;
-       
-        // si es titular corresponde 1 como numero de integrante
+
+        // sies titular corresponde 1 como numero de integrante
         // sino corresponde el numero de integrante siguiente al ultimo familiar registrado
-        const lastFamiliar = await Afiliado.findOne().sort({ numeroAfiliado: numeroAfiliado, numeroIntegrante: -1 });
+        const lastFamiliar = await Afiliado.findOne({ numeroAfiliado: numeroAfiliado }).sort({ numeroIntegrante: -1 });
         const numeroIntegrante = lastFamiliar ? lastFamiliar.numeroIntegrante + 1 : 1;
-     
-        
+
+
         // 2. Crear Afiliado
         const afiliado = await Afiliado.create(
             [{
@@ -48,6 +48,12 @@ const createAfiliado = async (data) => {
             }]
         );
 
+        if (afiliado.parentesco !== 'Titular') {
+            const titular = await Afiliado.findOne({ numeroAfiliado: afiliado.numeroAfiliado, parentesco: 'Titular' });
+            afiliado.afiliadoTitularId = titular._id;
+            await afiliado.save();
+        }
+
         return afiliado[0];
 
     } catch (error) {
@@ -57,6 +63,10 @@ const createAfiliado = async (data) => {
 
 const updateAfiliado = async (id, data) => {
     try {
+        const currentAfiliado = await Afiliado.findById(id);
+        if (data.direccion && currentAfiliado) {
+            await direccionService.updateDireccion(currentAfiliado.direccionId, data.direccion);
+        }
         const afiliado = await Afiliado.findByIdAndUpdate(id, data, { new: true });
         return afiliado;
     } catch (error) {

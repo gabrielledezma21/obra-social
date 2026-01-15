@@ -37,7 +37,7 @@ const afiliadoSchema = new mongoose.Schema(
     numeroIntegrante: {
       type: Schema.Types.Number,
       required: [true, 'El numero de integrante es obligatorio'],
-      unique: [true, 'El numero de integrante ya se encuentra registrado'],
+      // unique: [true, 'El numero de integrante ya se encuentra registrado'], // Removed global uniqueness
     },
     parentesco: {
       type: Schema.Types.String,
@@ -91,7 +91,7 @@ const afiliadoSchema = new mongoose.Schema(
     },
     familiares: [{
       type: Schema.Types.ObjectId,
-      ref: 'Familiar',
+      ref: 'Afiliado',
     }],
     afiliadoTitularId: {
       type: Schema.Types.ObjectId,

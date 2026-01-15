@@ -3,11 +3,13 @@ const prestadorController = require("./prestadorController");
 const especialidadController = require("./especialidadController");
 const agendaController = require("./agendaController");
 const afiliadoController = require("./afiliadoController");
+const situacionTerapeuticaController = require("./situacionTerapeuticaController");
 
 module.exports = {
   genericController,
   prestadorController,
   especialidadController,
   agendaController,
-  afiliadoController
+  afiliadoController,
+  situacionTerapeuticaController
 };
