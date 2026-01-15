@@ -91,6 +91,26 @@ const doc = {
             direccionId: "60d5ecb8b48734356891f79f",
             situacionesTerapeuticas: ["60d5ecb8b48734356891f79f"],
             afiliadoTitularId: "60d5ecb8b48734356891f79f"
+        },
+        AgendaUpdateInput: {
+            horario: {
+                dias: {
+                    Lunes: { atiende: true, bloques: [{ horaInicio: "09:00", horaFin: "12:00" }] },
+                    Martes: { atiende: false, bloques: [] },
+                    Miercoles: { atiende: false, bloques: [] },
+                    Jueves: { atiende: false, bloques: [] },
+                    Viernes: { atiende: false, bloques: [] },
+                    Sabado: { atiende: false, bloques: [] },
+                    Domingo: { atiende: false, bloques: [] }
+                },
+                duracionTurno: 30
+            }
+        },
+        PrestadorUpdateInput: {
+            $ref: "#/definitions/PrestadorInput"
+        },
+        AfiliadoUpdateInput: {
+            $ref: "#/definitions/AfiliadoInput"
         }
     }
 };

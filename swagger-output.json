@@ -121,6 +121,15 @@
             "in": "path",
             "required": true,
             "type": "string"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "description": "Datos del prestador a modificar",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/PrestadorUpdateInput"
+            }
           }
         ],
         "responses": {
@@ -235,19 +244,10 @@
           {
             "name": "body",
             "in": "body",
+            "description": "Datos de la agenda a modificar (Solo Horario)",
+            "required": true,
             "schema": {
-              "type": "object",
-              "properties": {
-                "prestadorId": {
-                  "example": "any"
-                },
-                "centroDeAtencionId": {
-                  "example": "any"
-                },
-                "horario": {
-                  "example": "any"
-                }
-              }
+              "$ref": "#/definitions/AgendaUpdateInput"
             }
           }
         ],
@@ -346,6 +346,15 @@
             "in": "path",
             "required": true,
             "type": "string"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "description": "Datos del afiliado a modificar",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/AfiliadoUpdateInput"
+            }
           }
         ],
         "responses": {
@@ -836,6 +845,140 @@
           "example": "60d5ecb8b48734356891f79f"
         }
       }
+    },
+    "AgendaUpdateInput": {
+      "type": "object",
+      "properties": {
+        "horario": {
+          "type": "object",
+          "properties": {
+            "dias": {
+              "type": "object",
+              "properties": {
+                "Lunes": {
+                  "type": "object",
+                  "properties": {
+                    "atiende": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "bloques": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "horaInicio": {
+                            "type": "string",
+                            "example": "09:00"
+                          },
+                          "horaFin": {
+                            "type": "string",
+                            "example": "12:00"
+                          }
+                        }
+                      }
+                    }
+                  }
+                },
+                "Martes": {
+                  "type": "object",
+                  "properties": {
+                    "atiende": {
+                      "type": "boolean",
+                      "example": false
+                    },
+                    "bloques": {
+                      "type": "array",
+                      "example": [],
+                      "items": {}
+                    }
+                  }
+                },
+                "Miercoles": {
+                  "type": "object",
+                  "properties": {
+                    "atiende": {
+                      "type": "boolean",
+                      "example": false
+                    },
+                    "bloques": {
+                      "type": "array",
+                      "example": [],
+                      "items": {}
+                    }
+                  }
+                },
+                "Jueves": {
+                  "type": "object",
+                  "properties": {
+                    "atiende": {
+                      "type": "boolean",
+                      "example": false
+                    },
+                    "bloques": {
+                      "type": "array",
+                      "example": [],
+                      "items": {}
+                    }
+                  }
+                },
+                "Viernes": {
+                  "type": "object",
+                  "properties": {
+                    "atiende": {
+                      "type": "boolean",
+                      "example": false
+                    },
+                    "bloques": {
+                      "type": "array",
+                      "example": [],
+                      "items": {}
+                    }
+                  }
+                },
+                "Sabado": {
+                  "type": "object",
+                  "properties": {
+                    "atiende": {
+                      "type": "boolean",
+                      "example": false
+                    },
+                    "bloques": {
+                      "type": "array",
+                      "example": [],
+                      "items": {}
+                    }
+                  }
+                },
+                "Domingo": {
+                  "type": "object",
+                  "properties": {
+                    "atiende": {
+                      "type": "boolean",
+                      "example": false
+                    },
+                    "bloques": {
+                      "type": "array",
+                      "example": [],
+                      "items": {}
+                    }
+                  }
+                }
+              }
+            },
+            "duracionTurno": {
+              "type": "number",
+              "example": 30
+            }
+          }
+        }
+      }
+    },
+    "PrestadorUpdateInput": {
+      "$ref": "#/definitions/PrestadorInput"
+    },
+    "AfiliadoUpdateInput": {
+      "$ref": "#/definitions/AfiliadoInput"
     }
   }
 }

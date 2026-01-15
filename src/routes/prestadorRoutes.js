@@ -53,6 +53,12 @@ router.put('/:id',
   /* 
     #swagger.tags = ['Prestadores']
     #swagger.path = '/prestadores/{id}'
+    #swagger.parameters['body'] = {
+        in: 'body',
+        description: 'Datos del prestador a modificar',
+        required: true,
+        schema: { $ref: "#/definitions/PrestadorUpdateInput" }
+    }
   */
   genericMiddleware.existsModelById(Prestador),
   genericMiddleware.validarCamposExactos(Prestador),

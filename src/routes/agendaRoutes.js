@@ -60,6 +60,12 @@ router.put('/:id',
   /* 
     #swagger.tags = ['Agendas']
     #swagger.path = '/agendas/{id}'
+    #swagger.parameters['body'] = {
+        in: 'body',
+        description: 'Datos de la agenda a modificar (Solo Horario)',
+        required: true,
+        schema: { $ref: "#/definitions/AgendaUpdateInput" }
+    }
   */
   genericMiddleware.existsModelById(Agenda),
   agendaMiddleware.restrictToHorario,

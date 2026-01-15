@@ -54,6 +54,12 @@ router.put('/:id',
   /* 
     #swagger.tags = ['Afiliados']
     #swagger.path = '/afiliados/{id}'
+    #swagger.parameters['body'] = {
+        in: 'body',
+        description: 'Datos del afiliado a modificar',
+        required: true,
+        schema: { $ref: "#/definitions/AfiliadoUpdateInput" }
+    }
   */
   genericMiddleware.existsModelById(Afiliado),
   // genericMiddleware.validarCamposExactos(Afiliado),
