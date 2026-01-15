@@ -32,7 +32,7 @@ const afiliadoSchema = new mongoose.Schema(
     numeroAfiliado: {
       type: Schema.Types.Number,
       required: [true, 'El numero de afiliado es obligatorio'],
-      unique: [true, 'El numero de afiliado ya se encuentra registrado'],
+      // unique: [true, 'El numero de afiliado ya se encuentra registrado'], // Must be shared by family
     },
     numeroIntegrante: {
       type: Schema.Types.Number,
@@ -89,10 +89,6 @@ const afiliadoSchema = new mongoose.Schema(
     fechaBaja: {
       type: Schema.Types.Date,
     },
-    familiares: [{
-      type: Schema.Types.ObjectId,
-      ref: 'Afiliado',
-    }],
     afiliadoTitularId: {
       type: Schema.Types.ObjectId,
       ref: 'Afiliado',
@@ -100,12 +96,22 @@ const afiliadoSchema = new mongoose.Schema(
   },
   {
     collection: "afiliados",
+    toJSON: { virtuals: true },
+    toObject: { virtuals: true }
   }
 );
 
+afiliadoSchema.virtual('familiares', {
+  ref: 'Afiliado',
+  localField: '_id',
+  foreignField: 'afiliadoTitularId',
+});
+
 afiliadoSchema.set("toJSON", {
+  virtuals: true,
   transform: (_, ret) => {
     delete ret.__v;
+    //delete ret.id; // Usually virtuals: true adds 'id', we might want to keep _id only or both? Let's assume standard behavior. user transform removed __v.
     //delete ret._id;
   },
 });

@@ -20,8 +20,16 @@ const createAfiliado = async (data) => {
         const parentesco = parentescoOptions.includes(data.parentesco) ? data.parentesco : 'Titular';
 
         //ver el ultimo numero de afiliado registrado y asignar ese valor mas uno
-        const lastAfiliado = await Afiliado.findOne().sort({ numeroAfiliado: -1 });
-        const numeroAfiliado = lastAfiliado ? lastAfiliado.numeroAfiliado + 1 : 1;
+        let numeroAfiliado;
+        console.log("CreateAfiliado DATA:", JSON.stringify(data));
+        if (data.numeroAfiliado) {
+            numeroAfiliado = data.numeroAfiliado;
+            console.log("Using provided numeroAfiliado:", numeroAfiliado);
+        } else {
+            const lastAfiliado = await Afiliado.findOne().sort({ numeroAfiliado: -1 });
+            numeroAfiliado = lastAfiliado ? lastAfiliado.numeroAfiliado + 1 : 1;
+            console.log("Auto-generated numeroAfiliado:", numeroAfiliado);
+        }
 
         // sies titular corresponde 1 como numero de integrante
         // sino corresponde el numero de integrante siguiente al ultimo familiar registrado
@@ -30,7 +38,7 @@ const createAfiliado = async (data) => {
 
 
         // 2. Crear Afiliado
-        const afiliado = await Afiliado.create(
+        const createdAfiliados = await Afiliado.create(
             [{
                 nombre: data.nombre,
                 apellido: data.apellido,
@@ -47,14 +55,17 @@ const createAfiliado = async (data) => {
                 fechaAlta: fechaAlta
             }]
         );
+        const afiliado = createdAfiliados[0];
 
         if (afiliado.parentesco !== 'Titular') {
             const titular = await Afiliado.findOne({ numeroAfiliado: afiliado.numeroAfiliado, parentesco: 'Titular' });
-            afiliado.afiliadoTitularId = titular._id;
-            await afiliado.save();
+            if (titular) {
+                afiliado.afiliadoTitularId = titular._id;
+                await afiliado.save();
+            }
         }
 
-        return afiliado[0];
+        return afiliado;
 
     } catch (error) {
         throw new AppError(error.message, error.statusCode);

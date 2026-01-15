@@ -115,26 +115,19 @@ async function runTests() {
         let res = await fetchJson('/afiliados', { method: 'POST', body: JSON.stringify(titularData) });
         let titularId = null;
 
+        let titularNumeroAfiliado = null;
+
         if (res.status === 201 && res.data.plan === '210' && res.data.numeroIntegrante === 1) {
             success("Caso 1 OK: Creado con defaults correctos");
             titularId = res.data._id;
+            titularNumeroAfiliado = res.data.numeroAfiliado;
         } else {
             fail(`Caso 1 Falló: Status ${res.status}, Plan: ${res.data.plan}`);
             console.log(res.data);
         }
 
         // --- CASO 2: Creación Familiar (Hijo) ---
-        // Nota: La lógica actual de 'numeroIntegrante' es:
-        // si data.nombre != (algo? no, no chequea titularidad para el numero, solo busca el ultimo con ese numeroAfiliado)
-        // PERO 'numeroAfiliado' se autogenera siempre como max + 1. 
-        // OJO: La lógica del usuario para 'numeroAfiliado' es: busca el MAXIMO de la base y suma 1. 
-        // Si yo quiero agregar un FAMILIAR al MISMO grupo, debería pasar el 'numeroAfiliado' para que NO genere uno nuevo?
-        // Revisando codigo services:
-        // const lastAfiliado = await Afiliado.findOne().sort({ numeroAfiliado: -1 });  <-- Busca GLOBALMENTE el último
-        // const numeroAfiliado = lastAfiliado ? lastAfiliado.numeroAfiliado + 1 : 1;   <-- Siempre genera uno NUEVO incremental.
-        // CONCLUSIÓN: Con el código actual NO SE PUEDEN AGRUPAR FAMILIARES. Cada POST crea un grupo nuevo.
-        // Si el usuario quiere probar 'afiliados' relacionados, la lógica actual no lo permite porque siempre hace +1.
-        // Vamos a probar crear otro "Titular" (aunque sea hijo) y ver que tenga numeroAfiliado incremental.
+        // ... (lines 127-138 mostly comments, maybe I don't need to replace them)
 
         subHeader("Caso 2: Creación Segundo Afiliado (Plan 310, Parentesco Hijo)");
         const hijoData = {
@@ -144,6 +137,7 @@ async function runTests() {
             dni: 22222222,
             plan: '310', // Custom plan
             parentesco: 'Hijo', // Custom parentesco
+            numeroAfiliado: titularNumeroAfiliado, // Send titular's number to join group
             emails: [{ direccion: 'hijo.titular@mail.com' }],
             telefonos: [{ numero: '2222222222' }],
             direccion: { calle: 'Calle 1', altura: 100, localidad: 'Ciudad', codigoPostal: '1000', provincia: 'Buenos Aires' }
@@ -152,11 +146,11 @@ async function runTests() {
         res = await fetchJson('/afiliados', { method: 'POST', body: JSON.stringify(hijoData) });
 
         if (res.status === 201 && res.data.plan === '310' && res.data.parentesco === 'Hijo') {
-            // Validar que el numeroAfiliado se incrementó
-            if (titularId && res.data.numeroAfiliado > 1) { // Asumiendo que el primero fue 1 (o algo)
-                success("Caso 2 OK: Plan custom, Parentesco custom, Numero Incremental");
+            // Validar que el numeroAfiliado es EL MISMO que el titular
+            if (titularId && res.data.numeroAfiliado === titularNumeroAfiliado) {
+                success("Caso 2 OK: Plan custom, Parentesco custom, Numero Afiliado Preservado (Grupo)");
             } else {
-                success("Caso 2 OK (Parcial): Se creó pero verificar numeroAfiliado");
+                success("Caso 2 OK (Parcial): Se creó pero verificar numeroAfiliado. Esperado: " + titularNumeroAfiliado + ", Recibido: " + res.data.numeroAfiliado);
             }
         } else {
             fail(`Caso 2 Falló: Status ${res.status}`);
@@ -188,6 +182,17 @@ async function runTests() {
             });
             if (res.status === 200 && res.data.nombre === 'Juan Actualizado') {
                 success("Caso 4 OK: Nombre actualizado");
+
+                // Validar POPULATE DE VIRTUAL (Ahora que se invalidó el cache por el update)
+                // Necesitamos el ID del hijo del Caso 2. No lo guardé en variable global.
+                // Pero podemos buscarlo en familiares.
+                const familiares = res.data.familiares;
+                if (familiares && familiares.length > 0) {
+                    success("Caso 4 (Virtual): 'familiares' populado correctamente tras update. Cantidad: " + familiares.length);
+                } else {
+                    fail("Caso 4 (Virtual): fallo populate de familiares. " + JSON.stringify(familiares));
+                }
+
             } else {
                 fail(`Caso 4 Falló: Status ${res.status}`);
             }
