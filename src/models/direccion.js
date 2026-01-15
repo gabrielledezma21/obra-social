@@ -25,7 +25,6 @@ const direccionSchema = new mongoose.Schema(
     codigoPostal: {
       type: Schema.Types.String,
       required: [true, 'El codigo postal es obligatorio'],
-      default: null,
     },
     provincia: {
       type: Schema.Types.String,

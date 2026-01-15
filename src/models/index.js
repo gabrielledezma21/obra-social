@@ -4,12 +4,14 @@ const Direccion = require('./direccion');
 const { Horario } = require('./horario');
 const Especialidad = require('./especialidad');
 const Agenda = require('./agenda');
+const Afiliado = require('./afiliado');
 
 module.exports = {
   Prestador,
   CentroDeAtencion,
   Direccion,
   Horario,
-  Especialidad,
-  Agenda
+  Especialidad, 
+  Agenda,
+  Afiliado
 }

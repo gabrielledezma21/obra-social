@@ -31,4 +31,22 @@ const validarProvincia = (provincia) => {
     return provincia;
 }
 
-module.exports = { createDireccion };
+const updateDireccion = async (id, data) => {
+    try {
+        const d = data || {};
+        const updateData = {};
+        if (d.calle) updateData.calle = await capitalizarCadena(d.calle);
+        if (d.altura) updateData.altura = d.altura;
+        if (d.pisoDepto !== undefined) updateData.pisoDepto = d.pisoDepto;
+        if (d.localidad) updateData.localidad = await capitalizarCadena(d.localidad);
+        if (d.codigoPostal) updateData.codigoPostal = d.codigoPostal;
+        if (d.provincia) updateData.provincia = validarProvincia(await capitalizarCadena(d.provincia));
+
+        const direccion = await Direccion.findByIdAndUpdate(id, updateData, { new: true });
+        return direccion;
+    } catch (error) {
+        throw new AppError(error.message, error.statusCode);
+    }
+}
+
+module.exports = { createDireccion, updateDireccion };
