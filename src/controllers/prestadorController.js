@@ -15,7 +15,8 @@ const getPrestadores = async (_, res) => {
         { path: 'direccionId', select: 'calle altura localidad provincia' }, //puedo optar por mostrar solo lo que quiero
         { path: 'horarioId' }
       ]
-    });
+    })
+    .populate('agendas');
 
   await redisClient.set('Prestadors:todos', JSON.stringify(prestadores), { EX: 60 });
 
@@ -34,8 +35,8 @@ const getPrestadorById = async (req, res) => {
         { path: 'direccionId' },
         { path: 'horarioId' }
       ]
-    }
-    );
+    })
+    .populate('agendas');
 
   await redisClient.set(`Prestador:${req.params.id}`, JSON.stringify(prestador), { EX: 60 })
 
@@ -73,6 +74,6 @@ const updatePrestador = async (req, res) => {
   res.status(200).json(prestador);
 }
 
-  
+
 
 module.exports = { getPrestadores, getPrestadorById, createPrestador, deletePrestador, updatePrestador };
