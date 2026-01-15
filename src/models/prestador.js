@@ -50,10 +50,6 @@ const prestadorSchema = new mongoose.Schema(
       ref: 'CentroDeAtencion',
       required: [true, 'El prestador debe tener al menos un centro de atencion'],
     }],
-    agendas: [{
-      type: Schema.Types.ObjectId,
-      ref: 'Agenda'
-    }],
     esCentroMedico: {
       type: Schema.Types.Boolean,
       default: false,
@@ -76,12 +72,22 @@ const prestadorSchema = new mongoose.Schema(
   },
   {
     collection: "prestadores",
+    toJSON: { virtuals: true },
+    toObject: { virtuals: true }
   }
 );
 
+prestadorSchema.virtual('agendas', {
+  ref: 'Agenda',
+  localField: '_id',
+  foreignField: 'prestadorId',
+});
+
 prestadorSchema.set("toJSON", {
+  virtuals: true,
   transform: (_, ret) => {
     delete ret.__v;
+    //delete ret.id;
     //delete ret._id;
   },
 });
