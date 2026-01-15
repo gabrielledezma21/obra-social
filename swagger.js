@@ -4,7 +4,7 @@ require('dotenv').config();
 const doc = {
     info: {
         title: 'Obra Social API',
-        description: 'API para la gestión de prestadores médicos, especialidades y agendas de turnos.',
+        description: 'API para la gestión de prestadores médicos, especialidades, agendas de turnos y afiliados.',
         version: '1.0.0'
     },
     host: `localhost:${process.env.PORT || 3002}`,
@@ -21,6 +21,14 @@ const doc = {
         {
             name: "Agendas",
             description: "Gestión de agendas y turnos"
+        },
+        {
+            name: "Afiliados",
+            description: "Gestión de afiliados (Titulares y Familiares)"
+        },
+        {
+            name: "Situaciones Terapeuticas",
+            description: "Catálogo de situaciones terapéuticas"
         }
     ],
     definitions: {
@@ -36,6 +44,7 @@ const doc = {
                     calle: "Av. Siempreviva",
                     altura: 742,
                     localidad: "Springfield",
+                    codigoPostal: "1000",
                     provincia: "Buenos Aires"
                 },
                 horario: {
@@ -50,7 +59,8 @@ const doc = {
                     },
                     duracionTurno: 20
                 }
-            }]
+            }],
+            centroMedicoQueIntegra: "60d5ecb8b48734356891f79f"
         },
         AgendaInput: {
             prestadorId: "60d5ecb8b48734356891f79f",
@@ -68,12 +78,31 @@ const doc = {
                 },
                 duracionTurno: 30
             }
+        },
+        AfiliadoInput: {
+            nombre: "Juan",
+            apellido: "Perez",
+            tipoDocumento: "DNI",
+            dni: 12345678,
+            parentesco: "Titular",
+            emails: [{ direccion: "juan@perez.com" }],
+            telefonos: [{ numero: "1111111111" }],
+            plan: "210",
+            direccionId: "60d5ecb8b48734356891f79f",
+            situacionesTerapeuticas: ["60d5ecb8b48734356891f79f"],
+            afiliadoTitularId: "60d5ecb8b48734356891f79f"
         }
     }
 };
 
 const outputFile = './swagger-output.json';
-const endpointsFiles = ['./src/routes/prestadorRoutes.js', './src/routes/especialidadRoutes.js', './src/routes/agendaRoutes.js'];
+const endpointsFiles = [
+    './src/routes/prestadorRoutes.js',
+    './src/routes/especialidadRoutes.js',
+    './src/routes/agendaRoutes.js',
+    './src/routes/afiliadoRoutes.js',
+    './src/routes/situacionTerapeuticaRoutes.js'
+];
 
 /* NOTE: if you use the express Router, you must pass in the 
    'endpointsFiles' only the root file where the route starts,

@@ -6,6 +6,7 @@ router.get('/',
   /* 
     #swagger.tags = ['Situaciones Terapeuticas']
     #swagger.path = '/situaciones-terapeuticas'
+    #swagger.description = 'Obtener todas las situaciones terapéuticas disponibles'
   */
   situacionTerapeuticaController.getSituacionesTerapeuticas
 );

@@ -136,8 +136,8 @@ async function runTests() {
         // --- 3. PRESTADORES ---
         header("3. PRESTADORES");
         res = await fetchJson('/prestadores');
-        if (res.status !== 200 || res.data.length !== 4) fail(`GET /prestadores falló. Expected 4, got ${res.data.length}`);
-        // Expected 4 now because of Dr. Tester
+        if (res.status !== 200 || res.data.length !== 6) fail(`GET /prestadores falló. Expected 6, got ${res.data.length}`);
+        // Expected 6 now because of Dr. Tester, Clinica Mayo, Dr. Asociado
         else success(`GET /prestadores OK (${res.data.length} items)`);
 
         // Use prestador from list that has centers and specialities

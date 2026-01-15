@@ -2,7 +2,7 @@
   "swagger": "2.0",
   "info": {
     "title": "Obra Social API",
-    "description": "API para la gestión de prestadores médicos, especialidades y agendas de turnos.",
+    "description": "API para la gestión de prestadores médicos, especialidades, agendas de turnos y afiliados.",
     "version": "1.0.0"
   },
   "host": "localhost:3002",
@@ -19,6 +19,14 @@
     {
       "name": "Agendas",
       "description": "Gestión de agendas y turnos"
+    },
+    {
+      "name": "Afiliados",
+      "description": "Gestión de afiliados (Titulares y Familiares)"
+    },
+    {
+      "name": "Situaciones Terapeuticas",
+      "description": "Catálogo de situaciones terapéuticas"
     }
   ],
   "schemes": [
@@ -55,7 +63,10 @@
         ],
         "responses": {
           "201": {
-            "description": "Created"
+            "description": "Prestador creado exitosamente"
+          },
+          "400": {
+            "description": "Datos inválidos o prestador ya existe"
           }
         }
       }
@@ -162,7 +173,10 @@
         ],
         "responses": {
           "201": {
-            "description": "Created"
+            "description": "Agenda creada exitosamente"
+          },
+          "400": {
+            "description": "Error de validación (horario ocupado, etc.)"
           }
         }
       }
@@ -243,6 +257,119 @@
           }
         }
       }
+    },
+    "/afiliados": {
+      "get": {
+        "tags": [
+          "Afiliados"
+        ],
+        "description": "",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Afiliados"
+        ],
+        "description": "",
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "description": "Datos del nuevo afiliado",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/AfiliadoInput"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Created"
+          }
+        }
+      }
+    },
+    "/afiliados/{id}": {
+      "get": {
+        "tags": [
+          "Afiliados"
+        ],
+        "description": "Obtener un afiliado por su ID",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Afiliado encontrado"
+          },
+          "404": {
+            "description": "Afiliado no encontrado"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Afiliados"
+        ],
+        "description": "",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Afiliados"
+        ],
+        "description": "",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/situaciones-terapeuticas": {
+      "get": {
+        "tags": [
+          "Situaciones Terapeuticas"
+        ],
+        "description": "Obtener todas las situaciones terapéuticas disponibles",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
     }
   },
   "definitions": {
@@ -313,6 +440,10 @@
                   "localidad": {
                     "type": "string",
                     "example": "Springfield"
+                  },
+                  "codigoPostal": {
+                    "type": "string",
+                    "example": "1000"
                   },
                   "provincia": {
                     "type": "string",
@@ -489,6 +620,10 @@
               }
             }
           }
+        },
+        "centroMedicoQueIntegra": {
+          "type": "string",
+          "example": "60d5ecb8b48734356891f79f"
         }
       }
     },
@@ -629,6 +764,76 @@
               "example": 30
             }
           }
+        }
+      }
+    },
+    "AfiliadoInput": {
+      "type": "object",
+      "properties": {
+        "nombre": {
+          "type": "string",
+          "example": "Juan"
+        },
+        "apellido": {
+          "type": "string",
+          "example": "Perez"
+        },
+        "tipoDocumento": {
+          "type": "string",
+          "example": "DNI"
+        },
+        "dni": {
+          "type": "number",
+          "example": 12345678
+        },
+        "parentesco": {
+          "type": "string",
+          "example": "Titular"
+        },
+        "emails": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "direccion": {
+                "type": "string",
+                "example": "juan@perez.com"
+              }
+            }
+          }
+        },
+        "telefonos": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "numero": {
+                "type": "string",
+                "example": "1111111111"
+              }
+            }
+          }
+        },
+        "plan": {
+          "type": "string",
+          "example": "210"
+        },
+        "direccionId": {
+          "type": "string",
+          "example": "60d5ecb8b48734356891f79f"
+        },
+        "situacionesTerapeuticas": {
+          "type": "array",
+          "example": [
+            "60d5ecb8b48734356891f79f"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "afiliadoTitularId": {
+          "type": "string",
+          "example": "60d5ecb8b48734356891f79f"
         }
       }
     }

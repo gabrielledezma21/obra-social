@@ -5,39 +5,49 @@ const { mongo } = require("../config/");
 
 const createAfiliado = async (data) => {
     try {
-        // 1. Crear Direccion (esperando resultados)
+        // 1. Crear Direccion
         const direccion = await direccionService.createDireccion(data.direccion);
 
-        //FECHA DE ALTA, sino la envian es la fecha actual
+        // FECHA DE ALTA
         const fechaAlta = data.fechaAlta ? new Date(data.fechaAlta) : new Date();
 
-        // plan solo puede ser 210, 310, 410 o 510
-        const planOptions = ['210', '310', '410', '510'];
-        const plan = planOptions.includes(data.plan) ? data.plan : '210';
+        // VALIDAR PLAN (Aunque el modelo lo valida, lo normalizamos si fuera necesario, o confiamos en el modelo)
+        // El usuario dijo "los planes son 210, 310, 410 o 510". El modelo ya lo valida.
+        const plan = data.plan;
 
-        //parentesco solo puede ser Titular, Conyuge, Hijo, Familiar a cargo
-        const parentescoOptions = ['Titular', 'Conyuge', 'Hijo', 'Familiar a cargo'];
-        const parentesco = parentescoOptions.includes(data.parentesco) ? data.parentesco : 'Titular';
+        // PARENTESCO
+        // parentesco solo puede ser Titular, Conyuge, Hijo, Familiar a cargo
+        // Validamos esto o dejamos que pase? Mejor normalizar si es nulo.
+        const parentesco = data.parentesco || 'Titular';
 
-        //ver el ultimo numero de afiliado registrado y asignar ese valor mas uno
         let numeroAfiliado;
-        console.log("CreateAfiliado DATA:", JSON.stringify(data));
-        if (data.numeroAfiliado) {
-            numeroAfiliado = data.numeroAfiliado;
-            console.log("Using provided numeroAfiliado:", numeroAfiliado);
-        } else {
+        let numeroIntegrante;
+
+        if (parentesco === 'Titular') {
+            // Generar nuevo numero de afiliado
             const lastAfiliado = await Afiliado.findOne().sort({ numeroAfiliado: -1 });
-            numeroAfiliado = lastAfiliado ? lastAfiliado.numeroAfiliado + 1 : 1;
-            console.log("Auto-generated numeroAfiliado:", numeroAfiliado);
+            numeroAfiliado = lastAfiliado ? lastAfiliado.numeroAfiliado + 1 : 1000; // Iniciamos en 1000 si no hay
+            numeroIntegrante = 1;
+        } else {
+            // Es familiar, necesita afiliadoTitularId
+            if (!data.afiliadoTitularId) {
+                throw new AppError("Debes especificar el afiliadoTitularId para registrar un familiar", 400);
+            }
+
+            const titular = await Afiliado.findById(data.afiliadoTitularId);
+            if (!titular) {
+                throw new AppError("El titular especificado no existe", 404);
+            }
+
+            numeroAfiliado = titular.numeroAfiliado;
+
+            // Calcular numero integrante (max integrante de este numeroAfiliado + 1)
+            const lastFamiliar = await Afiliado.findOne({ numeroAfiliado: numeroAfiliado }).sort({ numeroIntegrante: -1 });
+            numeroIntegrante = lastFamiliar ? lastFamiliar.numeroIntegrante + 1 : 2; // Debería ser al menos 2 si ya existe el titular
         }
 
-        // sies titular corresponde 1 como numero de integrante
-        // sino corresponde el numero de integrante siguiente al ultimo familiar registrado
-        const lastFamiliar = await Afiliado.findOne({ numeroAfiliado: numeroAfiliado }).sort({ numeroIntegrante: -1 });
-        const numeroIntegrante = lastFamiliar ? lastFamiliar.numeroIntegrante + 1 : 1;
-
-
         // 2. Crear Afiliado
+        // Nota: create acepta objeto o array. Usamos array en original, mantenemos consistencia si se prefiere.
         const createdAfiliados = await Afiliado.create(
             [{
                 nombre: data.nombre,
@@ -52,18 +62,11 @@ const createAfiliado = async (data) => {
                 telefonos: data.telefonos,
                 direccionId: direccion._id,
                 plan: plan,
-                fechaAlta: fechaAlta
+                fechaAlta: fechaAlta,
+                afiliadoTitularId: data.afiliadoTitularId // Si es null no pasa nada
             }]
         );
         const afiliado = createdAfiliados[0];
-
-        if (afiliado.parentesco !== 'Titular') {
-            const titular = await Afiliado.findOne({ numeroAfiliado: afiliado.numeroAfiliado, parentesco: 'Titular' });
-            if (titular) {
-                afiliado.afiliadoTitularId = titular._id;
-                await afiliado.save();
-            }
-        }
 
         return afiliado;
 

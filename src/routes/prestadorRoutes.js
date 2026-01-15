@@ -32,6 +32,8 @@ router.post('/',
         required: true,
         schema: { $ref: "#/definitions/PrestadorInput" }
     }
+    #swagger.responses[201] = { description: 'Prestador creado exitosamente' }
+    #swagger.responses[400] = { description: 'Datos inválidos o prestador ya existe' }
   */
   prestadorMiddleware.notExistsPrestador,
   genericMiddleware.validarCamposExactos(Prestador),

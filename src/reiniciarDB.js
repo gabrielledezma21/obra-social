@@ -103,13 +103,37 @@ const runSeed = async () => {
         centrosDeAtencion: [centros[1]._id, centros[2]._id],
         agendas: []
       },
-      {
+      { // Added missing opening brace here
         nombre: 'Dra. Grey',
         cuilCuit: '27123456789',
         emails: [{ direccion: 'grey@anatomy.com' }],
         telefonos: [{ numero: '3333333333' }],
         especialidades: [especialidades[2]._id], // Dermato
         centrosDeAtencion: [centros[0]._id, centros[2]._id],
+        agendas: [],
+        centroMedicoQueIntegra: null // No integra, o podemos hacer que House sea CM.
+      },
+      // 5.1 Un Centro Medico (Prestador que es CM)
+      {
+        nombre: 'Clinica Mayo',
+        cuilCuit: '30111111111',
+        emails: [{ direccion: 'info@mayo.com' }],
+        telefonos: [{ numero: '5555555000' }],
+        especialidades: [especialidades[0]._id],
+        centrosDeAtencion: [centros[0]._id],
+        esCentroMedico: true,
+        agendas: []
+      },
+      // 5.2 Prestador que integra la Clinica
+      {
+        nombre: 'Dr. Asociado',
+        cuilCuit: '20999999999',
+        emails: [{ direccion: 'asociado@mayo.com' }],
+        telefonos: [{ numero: '5555555001' }],
+        especialidades: [especialidades[0]._id],
+        centrosDeAtencion: [centros[0]._id],
+        esCentroMedico: false,
+        centroMedicoQueIntegra: null, // Asignaremos despues o... wait, referenced by ID which doesn't exist yet in array creation.
         agendas: []
       },
       // Dr. Tester - Para tests de creación de agenda
@@ -124,6 +148,15 @@ const runSeed = async () => {
       }
     ]);
     console.log(`✅ ${prestadores.length} Prestadores creados`);
+
+    // Vincular Dr. Asociado a Clinica Mayo
+    const clinica = prestadores.find(p => p.nombre === 'Clinica Mayo');
+    const asociado = prestadores.find(p => p.nombre === 'Dr. Asociado');
+    if (clinica && asociado) {
+      asociado.centroMedicoQueIntegra = clinica._id;
+      await asociado.save();
+      console.log("✅ Dr. Asociado vinculado a Clinica Mayo");
+    }
 
     // 6. Agendas (Interconectadas)
     // Usamos el helper para crear objetos horario completos
@@ -163,7 +196,7 @@ const runSeed = async () => {
       nombre: 'Homero', apellido: 'Simpson', tipoDocumento: 'DNI', dni: 10000001,
       numeroAfiliado: 1000, numeroIntegrante: 1, parentesco: 'Titular',
       emails: [{ direccion: 'homero@simpson.com' }], telefonos: [{ numero: '1144444444' }],
-      direccionId: direccionAfiliado._id, plan: 'A100', fechaAlta: new Date(),
+      direccionId: direccionAfiliado._id, plan: '210', fechaAlta: new Date(),
       situacionesTerapeuticas: [situaciones[0]._id] // Discapacidad
     });
 
@@ -172,7 +205,7 @@ const runSeed = async () => {
       nombre: 'Bart', apellido: 'Simpson', tipoDocumento: 'DNI', dni: 10000002,
       numeroAfiliado: 1000, numeroIntegrante: 2, parentesco: 'Hijo',
       emails: [{ direccion: 'bart@simpson.com' }], telefonos: [{ numero: '1155555555' }],
-      direccionId: direccionAfiliado._id, plan: 'A100', fechaAlta: new Date(),
+      direccionId: direccionAfiliado._id, plan: '210', fechaAlta: new Date(),
       afiliadoTitularId: titular1._id
     });
 
@@ -181,7 +214,7 @@ const runSeed = async () => {
       nombre: 'Marge', apellido: 'Bouvier', tipoDocumento: 'DNI', dni: 20000001,
       numeroAfiliado: 2000, numeroIntegrante: 1, parentesco: 'Titular',
       emails: [{ direccion: 'marge@bouvier.com' }], telefonos: [{ numero: '1166666666' }],
-      direccionId: direccionAfiliado._id, plan: 'B200', fechaAlta: new Date(),
+      direccionId: direccionAfiliado._id, plan: '310', fechaAlta: new Date(),
       situacionesTerapeuticas: [situaciones[1]._id] // Embarazo
     });
 

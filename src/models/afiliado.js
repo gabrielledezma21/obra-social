@@ -15,7 +15,11 @@ const afiliadoSchema = new mongoose.Schema(
     },
     tipoDocumento: {
       type: Schema.Types.String,
-      required: [true, 'El tipo de documento es obligatorio'],
+      required: [true, 'El tipo de documento es obligatorio'], 
+      enum: {
+        values: ['DNI', 'LE', 'LC', 'CI', 'CE'],
+        message: 'Tipo de documento no válido'
+      }
     },
     dni: {
       type: Schema.Types.Number,
@@ -31,17 +35,19 @@ const afiliadoSchema = new mongoose.Schema(
     },
     numeroAfiliado: {
       type: Schema.Types.Number,
-      required: [true, 'El numero de afiliado es obligatorio'],
       // unique: [true, 'El numero de afiliado ya se encuentra registrado'], // Must be shared by family
     },
     numeroIntegrante: {
       type: Schema.Types.Number,
-      required: [true, 'El numero de integrante es obligatorio'],
       // unique: [true, 'El numero de integrante ya se encuentra registrado'], // Removed global uniqueness
     },
     parentesco: {
       type: Schema.Types.String,
       required: [true, 'El parentesco es obligatorio'],
+      enum: {
+        values: ['Titular', 'Conyuge', 'Hijo', 'Familiar a cargo'],
+        message: 'Parentesco no válido'
+      }
     },
     situacionesTerapeuticas: [{
       type: Schema.Types.ObjectId,
@@ -81,6 +87,10 @@ const afiliadoSchema = new mongoose.Schema(
     plan: {
       type: Schema.Types.String,
       required: [true, 'El plan es obligatorio'],
+      enum: {
+        values: ['210', '310', '410', '510'],
+        message: 'Plan no válido'
+      }
     },
     fechaAlta: {
       type: Schema.Types.Date,

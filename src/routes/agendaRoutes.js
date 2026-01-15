@@ -32,6 +32,8 @@ router.post('/',
         required: true,
         schema: { $ref: "#/definitions/AgendaInput" }
     }
+    #swagger.responses[201] = { description: 'Agenda creada exitosamente' }
+    #swagger.responses[400] = { description: 'Error de validación (horario ocupado, etc.)' }
   */
   agendaMiddleware.existsPrestador,
   agendaMiddleware.existsCentroAtencion,
