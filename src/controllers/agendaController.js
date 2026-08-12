@@ -1,7 +1,15 @@
-const { Agenda } = require("../models");
+const { Agenda, Prestador, Especialidad } = require("../models");
 const { redisClient } = require("../config/redisClient");
 const { getModelsCache, getModelCacheById, deleteModelsCache, deleteModelCacheById } = require("./genericController");
 const agendaService = require("../services/agendaService");
+
+const populateAgenda = (query) => query
+  .populate('especialidadId')
+  .populate('prestadorId')
+  .populate({
+    path: 'centroDeAtencionId',
+    populate: [{ path: 'direccionId' }, { path: 'horarioId' }]
+  });
 
 const getAgendas = async (_, res) => {
 
@@ -47,10 +55,16 @@ const getAgendaById = async (req, res) => {
 
 const createAgenda = async (req, res) => {
 
-  const agenda = await agendaService.createAgenda(req.body);
+  const created = await agendaService.createAgenda(req.body);
+  const agenda = await populateAgenda(Agenda.findById(created._id));
 
   await redisClient.set(`Agenda:${agenda._id}`, JSON.stringify(agenda), { EX: 60 });
-  await deleteModelsCache(Agenda);
+  await Promise.all([
+    deleteModelsCache(Agenda),
+    deleteModelsCache(Prestador),
+    deleteModelsCache(Especialidad),
+    deleteModelCacheById(Prestador, created.prestadorId)
+  ]);
 
   res.status(201).json(agenda);
 }
@@ -59,18 +73,28 @@ const deleteAgenda = async (req, res) => {
 
   await Agenda.findByIdAndDelete(req.params.id);
 
-  await deleteModelsCache(Agenda);
-  await deleteModelCacheById(Agenda, req.params.id);
+  await Promise.all([
+    deleteModelsCache(Agenda),
+    deleteModelsCache(Prestador),
+    deleteModelsCache(Especialidad),
+    deleteModelCacheById(Agenda, req.params.id)
+  ]);
 
-  res.status(204).json({});
+  res.status(204).send();
 }
 
 const updateAgenda = async (req, res) => {
 
-  const agenda = await agendaService.updateAgenda(req.params.id, req.body);
+  const updated = await agendaService.updateAgenda(req.params.id, req.body);
+  const agenda = await populateAgenda(Agenda.findById(updated._id));
 
-  await deleteModelCacheById(Agenda, req.params.id);
-  await deleteModelsCache(Agenda);
+  await Promise.all([
+    deleteModelCacheById(Agenda, req.params.id),
+    deleteModelsCache(Agenda),
+    deleteModelsCache(Prestador),
+    deleteModelsCache(Especialidad),
+    deleteModelCacheById(Prestador, updated.prestadorId)
+  ]);
   await redisClient.set(`Agenda:${agenda._id}`, JSON.stringify(agenda), { EX: 60 });
 
   res.status(200).json(agenda);
