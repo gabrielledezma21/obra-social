@@ -68,11 +68,15 @@ El proyecto está construido sobre un stack robusto y escalable:
     ```
 
 3.  **Configurar Variables de Entorno**
-    Crea un archivo `.env` en la raíz:
+    Copia `.env.example` como `.env` y completa la conexión a MongoDB:
     ```env
     PORT=3002
     MONGO_URI=mongodb://admin:admin123@localhost:27017/obraSocial?authSource=admin
+    REDIS_URL=redis://localhost:6379
+    CORS_ORIGIN=http://localhost:5173
     ```
+
+    `REDIS_URL` es opcional. Si no se configura, la API funciona sin caché.
 
 4.  **Iniciar Servidor**
     ```bash
@@ -127,6 +131,22 @@ node test_integration_full.js
 - Verificación de creación de Entidades (CRUD).
 - Validación de **Campos Virtuales** (ej. ver agendas dentro de un prestador).
 - Comprobación de integridad referencial.
+
+---
+
+## ☁️ Despliegue en Vercel
+
+El proyecto incluye una entrada serverless en `api/index.js` y conserva
+`src/server.js` para el desarrollo local.
+
+1. Importa este repositorio en Vercel.
+2. Configura `MONGO_URI` en Development, Preview y Production.
+3. Opcionalmente configura `REDIS_URL` para habilitar la caché.
+4. Configura `CORS_ORIGIN` con los orígenes permitidos separados por comas.
+5. Despliega y comprueba `/health` y `/doc`.
+
+La carga de datos de demostración se ejecuta manualmente con `npm run db` sobre
+la base seleccionada. No se ejecuta durante el build ni al iniciar cada Function.
 
 ---
 

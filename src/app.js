@@ -1,24 +1,80 @@
+const express = require('express');
+const cors = require('cors');
+const swaggerUi = require('swagger-ui-express');
+const swaggerFile = require('../swagger-output.json');
+const { mongo } = require('./config');
 const { prestadorRutas, especialidadRutas, agendaRutas, afiliadoRutas, situacionTerapeuticaRutas } = require("./routes");
 const { logRequest } = require("./middlewares/genericMiddleware");
 
-const configureApp = (APP) => {
+const APP = express();
 
-  APP.use(logRequest); // se utiliza para ver que peticion se hizo y que se envio, es para debuggear
+const allowedOrigins = (process.env.CORS_ORIGIN || '')
+  .split(',')
+  .map((origin) => origin.trim())
+  .filter(Boolean);
 
-  //rutas
-  APP.use("/prestadores", prestadorRutas);
-  APP.use("/especialidades", especialidadRutas);
-  APP.use("/agendas", agendaRutas);
-  APP.use("/afiliados", afiliadoRutas);
-  APP.use("/situaciones-terapeuticas", situacionTerapeuticaRutas);
-
-  APP.use(
-    (err, req, res, next) => {
-      res.status(err.statusCode || 500).json({ error: err.message, code: err.code ?? null });
+const corsOptions = {
+  origin(origin, callback) {
+    if (!origin || allowedOrigins.length === 0 || allowedOrigins.includes(origin)) {
+      return callback(null, true);
     }
-  ); // nuevo formato para manejar errores globales desde error
-
-  return APP;
+    return callback(new Error('Origen no permitido por CORS'));
+  },
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
 };
 
-module.exports = { configureApp };
+const ensureDatabase = async (req, res, next) => {
+  try {
+    await mongo.conectarDB();
+    next();
+  } catch (error) {
+    next(error);
+  }
+};
+
+const configureApp = (app) => {
+  app.disable('x-powered-by');
+  app.use(cors(corsOptions));
+  app.use(express.json());
+
+  app.get('/', (req, res) => {
+    res.json({
+      name: 'MedIntegral API',
+      status: 'online',
+      documentation: '/doc',
+      health: '/health',
+    });
+  });
+
+  app.get('/health', (req, res) => {
+    res.json({ status: 'ok', service: 'medintegral-api' });
+  });
+
+  // Swagger 2 usa el host de la petición cuando no se fija uno explícitamente.
+  delete swaggerFile.host;
+  delete swaggerFile.schemes;
+  app.use('/doc', swaggerUi.serve, swaggerUi.setup(swaggerFile));
+
+  app.use(ensureDatabase);
+  app.use(logRequest);
+
+  //rutas
+  app.use("/prestadores", prestadorRutas);
+  app.use("/especialidades", especialidadRutas);
+  app.use("/agendas", agendaRutas);
+  app.use("/afiliados", afiliadoRutas);
+  app.use("/situaciones-terapeuticas", situacionTerapeuticaRutas);
+
+  app.use(
+    (err, req, res, next) => {
+      console.error({ method: req.method, url: req.url, error: err.message });
+      res.status(err.statusCode || 500).json({ error: err.message, code: err.code ?? null });
+    }
+  );
+
+  return app;
+};
+
+configureApp(APP);
+
+module.exports = { APP, configureApp };
