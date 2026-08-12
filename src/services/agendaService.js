@@ -1,14 +1,11 @@
 const { Agenda } = require("../models");
 const AppError = require("../exceptions/appError");
-const horarioService = require("./horarioService");
-
 const createAgenda = async (data) => {
-  const horario = await horarioService.createHorario(data.horario);
   return Agenda.create({
     especialidadId: data.especialidadId,
     centroDeAtencionId: data.centroDeAtencionId,
     prestadorId: data.prestadorId,
-    horario
+    horario: data.horario
   });
 };
 
