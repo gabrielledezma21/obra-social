@@ -140,7 +140,8 @@ El proyecto incluye una entrada serverless en `api/index.js` y conserva
 `src/server.js` para el desarrollo local.
 
 1. Importa este repositorio en Vercel.
-2. Configura `MONGO_URI` en Development, Preview y Production.
+2. Configura `MONGO_URI` o instala MongoDB Atlas para recibir `MONGODB_URI`
+   automáticamente en Development, Preview y Production.
 3. Opcionalmente configura `REDIS_URL` para habilitar la caché.
 4. Configura `CORS_ORIGIN` con los orígenes permitidos separados por comas.
 5. Despliega y comprueba `/health` y `/doc`.

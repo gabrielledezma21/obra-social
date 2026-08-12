@@ -8,12 +8,14 @@ const conectarDB = async () => {
         return mongoose.connection;
     }
 
-    if (!process.env.MONGO_URI) {
-        throw new Error('Falta configurar la variable MONGO_URI');
+    const mongoUri = process.env.MONGO_URI || process.env.MONGODB_URI;
+
+    if (!mongoUri) {
+        throw new Error('Falta configurar MONGO_URI o MONGODB_URI');
     }
 
     if (!connectionPromise) {
-        connectionPromise = mongoose.connect(process.env.MONGO_URI, {
+        connectionPromise = mongoose.connect(mongoUri, {
             serverSelectionTimeoutMS: 5000,
         }).catch((error) => {
             connectionPromise = undefined;
