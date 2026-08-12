@@ -68,7 +68,12 @@ const configureApp = (app) => {
     }
 
     console.error({ method: req.method, url: req.url, status, code, error: message });
-    res.status(status).json({ error: message, message, code });
+    res.status(status).json({
+      error: message,
+      message,
+      code,
+      ...(err.existingAgendaId ? { existingAgendaId: err.existingAgendaId } : {})
+    });
   });
   return app;
 };
