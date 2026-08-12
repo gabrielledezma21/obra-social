@@ -1,78 +1,63 @@
-const { Afiliado } = require("../models");
+const { Afiliado, Direccion, SituacionTerapeutica } = require("../models");
+const AppError = require("../exceptions/appError");
 const { redisClient } = require("../config/redisClient");
 const { getModelsCache, getModelCacheById, deleteModelsCache, deleteModelCacheById } = require("./genericController");
 const afiliadoService = require("../services/afiliadoService");
 
+const populateAfiliado = (query) => query
+  .populate('situacionesTerapeuticas')
+  .populate('direccionId')
+  .populate('familiares')
+  .populate('afiliadoTitularId', 'numeroAfiliado nombre apellido');
+
 const getAfiliados = async (_, res) => {
-
-    const cached = await getModelsCache(Afiliado);
-
-    const afiliados = cached ? JSON.parse(cached) : await Afiliado.find()
-        .populate('situacionesTerapeuticas')
-        .populate('direccionId');
-
-    await redisClient.set('Afiliados:todos', JSON.stringify(afiliados), { EX: 60 });
-
-    res.status(200).json(afiliados);
-}
+  const cached = await getModelsCache(Afiliado);
+  const afiliados = cached ? JSON.parse(cached) : await Afiliado.find().populate('situacionesTerapeuticas').populate('direccionId');
+  await redisClient.set('Afiliados:todos', JSON.stringify(afiliados), { EX: 60 });
+  res.status(200).json(afiliados);
+};
 
 const getAfiliadoById = async (req, res) => {
-
-    const cached = await getModelCacheById(Afiliado, req.params.id);
-
-    const afiliado = cached ? JSON.parse(cached) : await Afiliado.findById(req.params.id)
-        .populate('situacionesTerapeuticas')
-        .populate('direccionId')
-        .populate('familiares')
-        .populate('afiliadoTitularId').select('numeroAfiliado nombre apellido')
-        ;
-
-    await redisClient.set(`Afiliado:${req.params.id}`, JSON.stringify(afiliado), { EX: 60 })
-
-    res.status(200).json(afiliado);
-}
+  const cached = await getModelCacheById(Afiliado, req.params.id);
+  const afiliado = cached ? JSON.parse(cached) : await populateAfiliado(Afiliado.findById(req.params.id));
+  await redisClient.set(`Afiliado:${req.params.id}`, JSON.stringify(afiliado), { EX: 60 });
+  res.status(200).json(afiliado);
+};
 
 const createAfiliado = async (req, res) => {
-
-    const afiliado = await afiliadoService.createAfiliado(req.body);
-
-    await redisClient.set(`Afiliado:${afiliado._id}`, JSON.stringify(afiliado), { EX: 60 });
-    await deleteModelsCache(Afiliado);
-
-    res.status(201).json(afiliado);
-}
+  const created = await afiliadoService.createAfiliado(req.body);
+  const afiliado = await populateAfiliado(Afiliado.findById(created._id));
+  await redisClient.set(`Afiliado:${afiliado._id}`, JSON.stringify(afiliado), { EX: 60 });
+  await deleteModelsCache(Afiliado);
+  if (afiliado.afiliadoTitularId?._id) await deleteModelCacheById(Afiliado, afiliado.afiliadoTitularId._id);
+  res.status(201).json(afiliado);
+};
 
 const deleteAfiliado = async (req, res) => {
-
-    await Afiliado.findByIdAndDelete(req.params.id);
-
-    await deleteModelsCache(Afiliado);
-    await deleteModelCacheById(Afiliado, req.params.id);
-
-    res.status(204).json({});
-}
+  const afiliado = await Afiliado.findById(req.params.id);
+  if (afiliado.parentesco === 'Titular' && await Afiliado.exists({ afiliadoTitularId: afiliado._id })) {
+    throw new AppError('No se puede eliminar un titular que todavía tiene integrantes en su grupo familiar', 409, 'TITULAR_CON_FAMILIARES');
+  }
+  await Promise.all([
+    Afiliado.findByIdAndDelete(afiliado._id),
+    Direccion.findByIdAndDelete(afiliado.direccionId),
+    SituacionTerapeutica.updateMany({ afiliados: afiliado._id }, { $pull: { afiliados: afiliado._id } })
+  ]);
+  await deleteModelsCache(Afiliado);
+  await deleteModelCacheById(Afiliado, afiliado._id);
+  if (afiliado.afiliadoTitularId) await deleteModelCacheById(Afiliado, afiliado.afiliadoTitularId);
+  res.status(204).send();
+};
 
 const updateAfiliado = async (req, res) => {
-    try {
-        // const afiliado = await afiliadoService.updateAfiliado(req.params.id, req.body); // Service returns unpopulated
-        await afiliadoService.updateAfiliado(req.params.id, req.body);
-
-        // Fetch fully populated to cache and return
-        const afiliado = await Afiliado.findById(req.params.id)
-            .populate('situacionesTerapeuticas')
-            .populate('direccionId')
-            .populate('familiares')
-            .populate('afiliadoTitularId', 'numeroAfiliado nombre apellido');
-
-        await deleteModelCacheById(Afiliado, req.params.id);
-        await deleteModelsCache(Afiliado);
-        await redisClient.set(`Afiliado:${afiliado._id}`, JSON.stringify(afiliado), { EX: 60 });
-
-        res.status(200).json(afiliado);
-    } catch (error) {
-        console.error("Error in updateAfiliado:", error);
-        res.status(500).json({ error: error.message });
-    }
-}
+  const current = await Afiliado.findById(req.params.id);
+  await afiliadoService.updateAfiliado(req.params.id, req.body);
+  const afiliado = await populateAfiliado(Afiliado.findById(req.params.id));
+  await deleteModelCacheById(Afiliado, req.params.id);
+  await deleteModelsCache(Afiliado);
+  if (current?.afiliadoTitularId) await deleteModelCacheById(Afiliado, current.afiliadoTitularId);
+  await redisClient.set(`Afiliado:${afiliado._id}`, JSON.stringify(afiliado), { EX: 60 });
+  res.status(200).json(afiliado);
+};
 
 module.exports = { getAfiliados, getAfiliadoById, createAfiliado, deleteAfiliado, updateAfiliado };
