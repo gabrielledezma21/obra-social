@@ -38,11 +38,13 @@ const deleteAfiliado = async (req, res) => {
   if (afiliado.parentesco === 'Titular' && await Afiliado.exists({ afiliadoTitularId: afiliado._id })) {
     throw new AppError('No se puede eliminar un titular que todavía tiene integrantes en su grupo familiar', 409, 'TITULAR_CON_FAMILIARES');
   }
-  await Promise.all([
-    Afiliado.findByIdAndDelete(afiliado._id),
-    Direccion.findByIdAndDelete(afiliado.direccionId),
-    SituacionTerapeutica.updateMany({ afiliados: afiliado._id }, { $pull: { afiliados: afiliado._id } })
-  ]);
+  await Afiliado.findByIdAndDelete(afiliado._id);
+  await SituacionTerapeutica.updateMany(
+    { afiliados: afiliado._id },
+    { $pull: { afiliados: afiliado._id } }
+  );
+  const direccionEnUso = await Afiliado.exists({ direccionId: afiliado.direccionId });
+  if (!direccionEnUso) await Direccion.findByIdAndDelete(afiliado.direccionId);
   await deleteModelsCache(Afiliado);
   await deleteModelCacheById(Afiliado, afiliado._id);
   if (afiliado.afiliadoTitularId) await deleteModelCacheById(Afiliado, afiliado.afiliadoTitularId);
