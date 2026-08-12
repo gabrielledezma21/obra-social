@@ -77,4 +77,5 @@ const configureApp = (app) => {
 
 configureApp(APP);
 
-module.exports = { APP, configureApp };
+module.exports = APP;
+module.exports.configureApp = configureApp;
