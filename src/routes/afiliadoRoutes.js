@@ -22,6 +22,15 @@ router.get('/provincias', async (req, res, next) => {
   }
 });
 
+router.get('/localidades', async (req, res, next) => {
+  try {
+    const localidades = await Direccion.distinct('localidad');
+    res.status(200).json(localidades.filter(Boolean).sort().map((nombre) => ({ id: nombre, nombre })));
+  } catch (error) {
+    next(error);
+  }
+});
+
 router.get('/:id',
   /* 
     #swagger.tags = ['Afiliados']
