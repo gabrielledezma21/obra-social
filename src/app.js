@@ -5,8 +5,10 @@ const swaggerFile = require('../swagger-output.json');
 const { mongo } = require('./config');
 const { prestadorRutas, especialidadRutas, agendaRutas, afiliadoRutas, situacionTerapeuticaRutas } = require("./routes");
 const { logRequest } = require("./middlewares/genericMiddleware");
+const { runSeed } = require('./reiniciarDB');
 
 const APP = express();
+let demoSeedPromise;
 
 const allowedOrigins = (process.env.CORS_ORIGIN || '')
   .split(',')
@@ -26,6 +28,10 @@ const corsOptions = {
 const ensureDatabase = async (req, res, next) => {
   try {
     await mongo.conectarDB();
+    if (process.env.SEED_DEMO_DATA === 'true') {
+      demoSeedPromise ??= runSeed({ clean: false });
+      await demoSeedPromise;
+    }
     next();
   } catch (error) {
     next(error);

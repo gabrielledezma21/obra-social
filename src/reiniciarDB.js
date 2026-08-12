@@ -35,10 +35,25 @@ const createAgendaHorario = (diaSemana, horaInicio, horaFin, duracionTurno = 30)
   return { dias, duracionTurno };
 };
 
-const runSeed = async () => {
+const runSeed = async ({ clean = true } = {}) => {
   try {
     await mongo.conectarDB();
-    await cleanDB();
+    if (clean) {
+      await cleanDB();
+    } else {
+      const existingData = await Promise.all([
+        Afiliado.exists({}),
+        Prestador.exists({}),
+        Especialidad.exists({}),
+        CentroDeAtencion.exists({}),
+        Agenda.exists({})
+      ]);
+
+      if (existingData.some(Boolean)) {
+        console.log('Demo seed omitido: la base ya contiene datos');
+        return { seeded: false };
+      }
+    }
 
     // 1. Especialidades
     const especialidades = await Especialidad.create([
@@ -224,9 +239,14 @@ const runSeed = async () => {
 
   } catch (error) {
     console.error('❌ Error en el seed:', error);
-  } finally {
-    process.exit(0);
+    throw error;
   }
 };
 
-runSeed();
+if (require.main === module) {
+  runSeed()
+    .then(() => process.exit(0))
+    .catch(() => process.exit(1));
+}
+
+module.exports = { runSeed };
