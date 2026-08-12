@@ -2,7 +2,7 @@ const { Router } = require("express");
 const router = Router();
 const { prestadorController } = require("../controllers");
 const { genericMiddleware, prestadorMiddleware } = require("../middlewares");
-const { Prestador } = require("../models");
+const { Prestador, Direccion } = require("../models");
 
 router.get('/',
   /* 
@@ -12,6 +12,24 @@ router.get('/',
   genericMiddleware.existsAnyByModel(Prestador),
   prestadorController.getPrestadores
 );
+
+router.get('/provincias', async (req, res, next) => {
+  try {
+    const provincias = await Direccion.distinct('provincia');
+    res.status(200).json(provincias.filter(Boolean).sort().map((nombre) => ({ id: nombre, nombre })));
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.get('/localidades', async (req, res, next) => {
+  try {
+    const localidades = await Direccion.distinct('localidad');
+    res.status(200).json(localidades.filter(Boolean).sort().map((nombre) => ({ id: nombre, nombre })));
+  } catch (error) {
+    next(error);
+  }
+});
 
 router.get('/:id',
   /* 
