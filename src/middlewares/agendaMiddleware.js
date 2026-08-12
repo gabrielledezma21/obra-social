@@ -248,7 +248,13 @@ const notExistsAgenda = async (req, res, next) => {
         });
 
         if (existingAgenda) {
-            return next(new AppError('Ya existe una agenda con los mismos datos (prestador, centro, especialidad)', 400, 'AGENDA_YA_EXISTE'));
+            const error = new AppError(
+                'Ya existe una agenda para este prestador, centro y especialidad. Podés editar sus horarios.',
+                409,
+                'AGENDA_YA_EXISTE'
+            );
+            error.existingAgendaId = existingAgenda._id.toString();
+            return next(error);
         }
         next();
     } catch (error) {
