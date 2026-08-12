@@ -69,7 +69,7 @@ diaSchema.pre('validate', function (next) {
             if (actual.inicio < anterior.fin) {
                 return next(
                     new AppError(
-                        `Solapamiento de bloques: ${minutosAString(anterior.horaInicio)}-${minutosAString(anterior.horaFin)} con ${minutosAString(actual.horaInicio)}-${minutosAString(actual.horaFin)}`,
+                        `Solapamiento de bloques: ${minutosAString(anterior.inicio)}-${minutosAString(anterior.fin)} con ${minutosAString(actual.inicio)}-${minutosAString(actual.fin)}`,
                         400,
                         'SOLAPAMIENTO_BLOQUES'
                     )
