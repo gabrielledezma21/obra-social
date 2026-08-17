@@ -3,6 +3,7 @@ const { Afiliado, Prestador, Agenda } = require('../models');
 const Solicitud = require('../models/solicitud');
 const Turno = require('../models/turno');
 const ErrorAplicacion = require('../exceptions/appError');
+const { esTurnoProximo } = require('../utils/fechaTurnos');
 const {
   autenticar,
   requerirRol,
@@ -254,7 +255,7 @@ rutas.get('/resumen', async (peticion, respuesta, siguiente) => {
       observadas,
       rechazadasSemana,
       aprobadasSemana,
-      cantidadTurnos,
+      turnosReservados,
     ] = await Promise.all([
       Solicitud.countDocuments({
         ...filtroBase,
@@ -271,12 +272,15 @@ rutas.get('/resumen', async (peticion, respuesta, siguiente) => {
         estado: 'Aprobado',
         actualizadoEn: { $gte: haceUnaSemana },
       }),
-      Turno.countDocuments({
+      Turno.find({
         afiliadoId: { $in: idsVisibles },
         estado: 'RESERVADO',
-        fecha: { $gte: ahora },
-      }),
+      }).select('fecha hora estado'),
     ]);
+
+    const cantidadTurnos = turnosReservados.filter((turno) =>
+      esTurnoProximo(turno, ahora)
+    ).length;
 
     respuesta.json({
       pendientes,
