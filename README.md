@@ -12,11 +12,13 @@
   - Generación automática de números de afiliado.
   - Gestión de titulares y grupos familiares.
   - Planes y vigencias.
+  - Baja y reincorporación individual o de todo el grupo familiar.
   - Situaciones terapéuticas.
 - **Prestadores y centros médicos**:
   - Especialidades.
   - Centros de atención, direcciones y horarios.
   - Vinculación de profesionales con centros médicos.
+  - Protección de especialidades y centros utilizados por relaciones activas.
 - **Agendas y turnos**:
   - Validación de horarios.
   - Prevención de agendas duplicadas.
@@ -35,6 +37,7 @@
   - Roles `ADMIN`, `AFILIADO` y `PRESTADOR`.
   - Activación mediante DNI + email.
   - Cambio obligatorio de contraseña en el primer ingreso.
+  - Tokens firmados con secreto obligatorio en producción.
 - **Reportes administrativos**.
 - **Swagger UI** para documentación de API.
 
@@ -79,6 +82,8 @@ CORS_ORIGIN=http://localhost:5173
 ```
 
 `REDIS_URL` es opcional. Si no está definida, la API sigue funcionando sin caché.
+
+`SECRETO_AUTENTICACION` es obligatorio cuando `NODE_ENV=production`; la API no utiliza una clave de desarrollo como respaldo en producción.
 
 Para iniciar el servidor:
 
@@ -147,20 +152,26 @@ Ejecutar todo:
 npm test
 ```
 
-La suite actual comprueba:
+Todos los archivos `tests/*.test.js` se incluyen automáticamente. La suite comprueba, entre otros casos:
 
 - salud de la API;
 - login correcto e incorrecto;
 - permisos de `ADMIN`, `AFILIADO` y `PRESTADOR`;
 - activación y cambio obligatorio de contraseña;
+- firma, alteración y vencimiento de tokens;
+- secreto obligatorio de autenticación en producción;
 - todos los GET administrativos principales;
 - reportes;
 - creación, consulta, edición y eliminación de afiliados;
 - persistencia de integrantes del grupo familiar;
+- baja y reincorporación completa del grupo familiar;
 - creación, consulta y edición de prestadores;
+- protección de especialidades usadas por agendas;
+- protección de centros médicos con prestadores asociados;
 - creación, consulta y edición de agendas;
 - disponibilidad, reserva, doble reserva y cancelación de turnos;
 - creación, edición y flujo de estados de solicitudes;
+- flujo completo `Observado → respuesta del afiliado → resolución`;
 - historia clínica;
 - situaciones terapéuticas;
 - integridad referencial final;
@@ -170,6 +181,7 @@ La suite actual comprueba:
 - limpieza de centros, direcciones y horarios sin referencias;
 - preservación de centros compartidos;
 - validación de referencias inexistentes;
+- rollback de direcciones y centros cuando una escritura falla a mitad de camino;
 - ocultamiento de contraseñas y tokens en los logs.
 
 ### Integración continua
@@ -178,6 +190,7 @@ La suite actual comprueba:
 
 ```bash
 npm ci
+npm audit --audit-level=high
 npm test
 ```
 
@@ -208,7 +221,7 @@ El proyecto incluye una entrada serverless en `api/index.js` y conserva `src/ser
 1. Importá el repositorio en Vercel.
 2. Configurá `MONGO_URI` o `MONGODB_URI`.
 3. Opcionalmente configurá `REDIS_URL`.
-4. Configurá `SECRETO_AUTENTICACION`.
+4. Configurá obligatoriamente `SECRETO_AUTENTICACION`.
 5. Configurá `CORS_ORIGIN` con los orígenes permitidos separados por comas.
 6. Comprobá `/health` y `/doc` luego del despliegue.
 
