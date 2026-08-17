@@ -1,4 +1,11 @@
 const { Prestador, Agenda, Especialidad } = require('../models');
+const Usuario = require('../models/usuario');
+const Solicitud = require('../models/solicitud');
+const Turno = require('../models/turno');
+const {
+  HistoriaClinica,
+  SituacionAfiliado,
+} = require('../models/historiaClinica');
 const servicioCentroDeAtencion = require('./centroDeAtencionService');
 const ErrorAplicacion = require('../exceptions/appError');
 
@@ -126,7 +133,28 @@ const actualizarPrestador = async (id, datos) => {
   });
 };
 
+const tieneHistorialOperativo = async (idPrestador) => {
+  const referencias = await Promise.all([
+    Usuario.exists({ prestadorId: idPrestador }),
+    Solicitud.exists({ prestadorId: idPrestador }),
+    Turno.exists({ prestadorId: idPrestador }),
+    HistoriaClinica.exists({ prestadorId: idPrestador }),
+    SituacionAfiliado.exists({ registradaPorPrestadorId: idPrestador }),
+  ]);
+
+  return referencias.some(Boolean);
+};
+
 const eliminarPrestador = async (id) => {
+  const prestador = await Prestador.findById(id);
+  if (!prestador) {
+    throw new ErrorAplicacion(
+      'Prestador no encontrado',
+      404,
+      'PRESTADOR_NO_ENCONTRADO'
+    );
+  }
+
   if (await Agenda.exists({ prestadorId: id })) {
     throw new ErrorAplicacion(
       'No se puede eliminar un prestador que tiene agendas activas',
@@ -134,6 +162,7 @@ const eliminarPrestador = async (id) => {
       'PRESTADOR_CON_AGENDAS'
     );
   }
+
   if (await Prestador.exists({ centroMedicoQueIntegra: id })) {
     throw new ErrorAplicacion(
       'No se puede eliminar un centro médico que todavía tiene prestadores asociados',
@@ -141,7 +170,20 @@ const eliminarPrestador = async (id) => {
       'CENTRO_MEDICO_CON_PRESTADORES'
     );
   }
-  return Prestador.findByIdAndDelete(id);
+
+  if (await tieneHistorialOperativo(id)) {
+    throw new ErrorAplicacion(
+      'No se puede eliminar físicamente un prestador que tiene historial operativo o clínico',
+      409,
+      'PRESTADOR_CON_HISTORIAL'
+    );
+  }
+
+  const centrosDeAtencion = prestador.centrosDeAtencion.map(String);
+  await Prestador.findByIdAndDelete(id);
+  await servicioCentroDeAtencion.deleteCentrosDeAtencion(centrosDeAtencion);
+
+  return prestador;
 };
 
 module.exports = {
