@@ -1,10 +1,11 @@
 const { Router } = require('express');
-const { Agenda } = require('../models');
+const { Afiliado, Agenda, Prestador } = require('../models');
 const Turno = require('../models/turno');
 const ErrorAplicacion = require('../exceptions/appError');
 const {
   CLAVES_DIAS,
   crearFechaHoraArgentina,
+  crearFechaPersistencia,
   esFechaValida,
   formatearFechaPersistida,
   obtenerClaveDia,
@@ -23,6 +24,7 @@ rutas.use(autenticar, requerirRol('AFILIADO'));
 const HORIZONTE_BUSQUEDA_DIAS = 42;
 const LIMITE_RESULTADOS_PREDETERMINADO = 30;
 const LIMITE_RESULTADOS_MAXIMO = 80;
+const LIMITE_PRESTADORES = 10;
 
 const convertirAMinutos = (valor) => {
   if (typeof valor === 'number') return valor;
@@ -39,6 +41,59 @@ const normalizarTexto = (valor) =>
   String(valor || '')
     .trim()
     .toLocaleLowerCase('es');
+
+const escaparExpresionRegular = (valor) =>
+  String(valor || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+const esMenorDeEdad = (fechaNacimiento) => {
+  if (!fechaNacimiento) return false;
+
+  const nacimiento = new Date(fechaNacimiento);
+  const hoy = new Date();
+  let edad = hoy.getFullYear() - nacimiento.getFullYear();
+  const aunNoCumplio =
+    hoy.getMonth() < nacimiento.getMonth() ||
+    (hoy.getMonth() === nacimiento.getMonth() &&
+      hoy.getDate() < nacimiento.getDate());
+
+  if (aunNoCumplio) edad -= 1;
+  return edad < 18;
+};
+
+const obtenerGrupoFamiliar = async (afiliadoActual) => {
+  const titularId =
+    afiliadoActual.parentesco === 'Titular'
+      ? afiliadoActual._id
+      : afiliadoActual.afiliadoTitularId;
+
+  if (!titularId) return [afiliadoActual];
+
+  return Afiliado.find({
+    $or: [{ _id: titularId }, { afiliadoTitularId: titularId }],
+  }).select('_id parentesco fechaNacimiento');
+};
+
+const obtenerIdsAfiliadosGestionables = async (usuario) => {
+  const afiliadoActual = await Afiliado.findById(usuario.afiliadoId);
+  if (!afiliadoActual) return [];
+
+  if (
+    afiliadoActual.parentesco === 'Titular' ||
+    afiliadoActual.parentesco === 'Conyuge'
+  ) {
+    const grupoFamiliar = await obtenerGrupoFamiliar(afiliadoActual);
+    return grupoFamiliar
+      .filter(
+        (integrante) =>
+          integrante._id.equals(afiliadoActual._id) ||
+          (integrante.parentesco === 'Hijo' &&
+            esMenorDeEdad(integrante.fechaNacimiento))
+      )
+      .map((integrante) => integrante._id.toString());
+  }
+
+  return [afiliadoActual._id.toString()];
+};
 
 const obtenerLimiteHorario = (valor, nombre) => {
   if (!valor) return null;
@@ -73,13 +128,78 @@ const construirFechasBusqueda = ({ fechaExacta, diaSemana }) => {
   const hoy = obtenerFechaActualArgentina();
   const fechas = [];
 
-  for (let desplazamiento = 0; desplazamiento <= HORIZONTE_BUSQUEDA_DIAS; desplazamiento += 1) {
+  for (
+    let desplazamiento = 0;
+    desplazamiento <= HORIZONTE_BUSQUEDA_DIAS;
+    desplazamiento += 1
+  ) {
     const fecha = sumarDias(hoy, desplazamiento);
     if (!diaSemana || obtenerClaveDia(fecha) === diaSemana) fechas.push(fecha);
   }
 
   return fechas;
 };
+
+const validarHorarioAgenda = (agenda, valorFecha, hora) => {
+  if (!esFechaValida(valorFecha)) {
+    throw new ErrorAplicacion('Fecha de turno inválida', 400);
+  }
+
+  const fechaHoraTurno = crearFechaHoraArgentina(valorFecha, hora);
+  if (!fechaHoraTurno) {
+    throw new ErrorAplicacion('Hora de turno inválida', 400);
+  }
+
+  const dia = agenda.horario?.dias?.[obtenerClaveDia(valorFecha)];
+  if (!dia?.atiende) {
+    throw new ErrorAplicacion('La agenda no atiende ese día', 409);
+  }
+
+  const minutosSeleccionados = convertirAMinutos(hora);
+  const duracionTurno = Number(agenda.horario?.duracionTurno || 30);
+  const horarioValido = (dia.bloques || []).some((bloque) => {
+    const inicio = convertirAMinutos(bloque.horaInicio);
+    const fin = convertirAMinutos(bloque.horaFin);
+
+    return (
+      minutosSeleccionados >= inicio &&
+      minutosSeleccionados + duracionTurno <= fin &&
+      (minutosSeleccionados - inicio) % duracionTurno === 0
+    );
+  });
+
+  if (!horarioValido) {
+    throw new ErrorAplicacion(
+      'El horario seleccionado no pertenece a la agenda',
+      409
+    );
+  }
+
+  if (fechaHoraTurno <= new Date()) {
+    throw new ErrorAplicacion(
+      'No se pueden reservar turnos en el pasado',
+      409
+    );
+  }
+};
+
+rutas.get('/prestadores/buscar', async (peticion, respuesta, siguiente) => {
+  try {
+    const busqueda = String(peticion.query.busqueda || '').trim();
+    if (busqueda.length < 2) return respuesta.json([]);
+
+    const expresion = new RegExp(escaparExpresionRegular(busqueda), 'i');
+    const prestadores = await Prestador.find({ nombre: expresion })
+      .sort({ nombre: 1 })
+      .limit(LIMITE_PRESTADORES)
+      .populate('especialidades')
+      .populate({ path: 'centrosDeAtencion', populate: 'direccionId' });
+
+    respuesta.json(prestadores);
+  } catch (error) {
+    siguiente(error);
+  }
+});
 
 rutas.get('/disponibilidad', async (peticion, respuesta, siguiente) => {
   try {
@@ -215,6 +335,86 @@ rutas.get('/disponibilidad', async (peticion, respuesta, siguiente) => {
     });
 
     respuesta.json(horariosDisponibles.slice(0, limiteResultados));
+  } catch (error) {
+    siguiente(error);
+  }
+});
+
+rutas.post('/turnos', async (peticion, respuesta, siguiente) => {
+  try {
+    const idsGestionables = await obtenerIdsAfiliadosGestionables(
+      peticion.usuario
+    );
+    if (!idsGestionables.includes(String(peticion.body.afiliadoId))) {
+      throw new ErrorAplicacion(
+        'No podés reservar para ese integrante',
+        403
+      );
+    }
+
+    const agenda = await Agenda.findById(peticion.body.agendaId);
+    if (!agenda) throw new ErrorAplicacion('Agenda no encontrada', 404);
+
+    const fechaTexto = String(peticion.body.fecha || '').slice(0, 10);
+    const hora = String(peticion.body.hora || '');
+    validarHorarioAgenda(agenda, fechaTexto, hora);
+
+    const rangoDia = obtenerRangoDiaUtc(fechaTexto);
+    const turnoExistente = await Turno.findOne({
+      agendaId: agenda._id,
+      fecha: { $gte: rangoDia.inicio, $lt: rangoDia.fin },
+      hora,
+      estado: 'RESERVADO',
+    });
+
+    if (turnoExistente) {
+      throw new ErrorAplicacion('El horario seleccionado ya fue reservado', 409);
+    }
+
+    const turno = await Turno.create({
+      agendaId: agenda._id,
+      prestadorId: agenda.prestadorId,
+      afiliadoId: peticion.body.afiliadoId,
+      reservadoPorAfiliadoId: peticion.usuario.afiliadoId,
+      fecha: crearFechaPersistencia(fechaTexto),
+      hora,
+    });
+
+    respuesta.status(201).json(turno);
+  } catch (error) {
+    siguiente(error);
+  }
+});
+
+rutas.post('/turnos/:id/cancelar', async (peticion, respuesta, siguiente) => {
+  try {
+    const idsGestionables = await obtenerIdsAfiliadosGestionables(
+      peticion.usuario
+    );
+    const turno = await Turno.findOne({
+      _id: peticion.params.id,
+      afiliadoId: { $in: idsGestionables },
+      estado: 'RESERVADO',
+    });
+
+    if (!turno) throw new ErrorAplicacion('Turno no encontrado', 404);
+
+    const fechaTexto = formatearFechaPersistida(turno.fecha);
+    const fechaHoraTurno = crearFechaHoraArgentina(fechaTexto, turno.hora);
+    if (!fechaHoraTurno) {
+      throw new ErrorAplicacion('El turno posee una fecha u hora inválida', 409);
+    }
+
+    if (fechaHoraTurno.getTime() - Date.now() < 86400000) {
+      throw new ErrorAplicacion(
+        'El turno solo puede cancelarse hasta un día antes',
+        409
+      );
+    }
+
+    turno.estado = 'CANCELADO';
+    await turno.save();
+    respuesta.json(turno);
   } catch (error) {
     siguiente(error);
   }
