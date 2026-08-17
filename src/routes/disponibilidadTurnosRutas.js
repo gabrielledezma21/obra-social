@@ -3,6 +3,16 @@ const { Agenda } = require('../models');
 const Turno = require('../models/turno');
 const ErrorAplicacion = require('../exceptions/appError');
 const {
+  CLAVES_DIAS,
+  crearFechaHoraArgentina,
+  esFechaValida,
+  formatearFechaPersistida,
+  obtenerClaveDia,
+  obtenerFechaActualArgentina,
+  obtenerRangoDiaUtc,
+  sumarDias,
+} = require('../utils/fechaTurnos');
+const {
   autenticar,
   requerirRol,
 } = require('../middlewares/autenticacionMiddleware');
@@ -10,15 +20,9 @@ const {
 const rutas = Router();
 rutas.use(autenticar, requerirRol('AFILIADO'));
 
-const CLAVES_DIAS = [
-  'Domingo',
-  'Lunes',
-  'Martes',
-  'Miercoles',
-  'Jueves',
-  'Viernes',
-  'Sabado',
-];
+const HORIZONTE_BUSQUEDA_DIAS = 42;
+const LIMITE_RESULTADOS_PREDETERMINADO = 30;
+const LIMITE_RESULTADOS_MAXIMO = 80;
 
 const convertirAMinutos = (valor) => {
   if (typeof valor === 'number') return valor;
@@ -40,19 +44,53 @@ const obtenerLimiteHorario = (valor, nombre) => {
   if (!valor) return null;
 
   const minutos = convertirAMinutos(valor);
-  if (!/^\d{2}:\d{2}$/.test(String(valor)) || !Number.isFinite(minutos) || minutos < 0 || minutos > 1439) {
+  if (
+    !/^\d{2}:\d{2}$/.test(String(valor)) ||
+    !Number.isFinite(minutos) ||
+    minutos < 0 ||
+    minutos > 1439
+  ) {
     throw new ErrorAplicacion(`El ${nombre} debe tener formato HH:mm`, 400);
   }
 
   return minutos;
 };
 
+const obtenerLimiteResultados = (valor) => {
+  if (!valor) return LIMITE_RESULTADOS_PREDETERMINADO;
+
+  const limite = Number(valor);
+  if (!Number.isInteger(limite) || limite < 1) {
+    throw new ErrorAplicacion('El límite de resultados debe ser un entero positivo', 400);
+  }
+
+  return Math.min(limite, LIMITE_RESULTADOS_MAXIMO);
+};
+
+const construirFechasBusqueda = ({ fechaExacta, diaSemana }) => {
+  if (fechaExacta) return [fechaExacta];
+
+  const hoy = obtenerFechaActualArgentina();
+  const fechas = [];
+
+  for (let desplazamiento = 0; desplazamiento <= HORIZONTE_BUSQUEDA_DIAS; desplazamiento += 1) {
+    const fecha = sumarDias(hoy, desplazamiento);
+    if (!diaSemana || obtenerClaveDia(fecha) === diaSemana) fechas.push(fecha);
+  }
+
+  return fechas;
+};
+
 rutas.get('/disponibilidad', async (peticion, respuesta, siguiente) => {
   try {
-    const fechaTexto = String(peticion.query.fecha || '').trim();
-    const fecha = new Date(`${fechaTexto}T12:00:00`);
-    if (!fechaTexto || Number.isNaN(fecha.getTime())) {
-      throw new ErrorAplicacion('Debe indicar una fecha válida', 400);
+    const fechaExacta = String(peticion.query.fecha || '').trim();
+    if (fechaExacta && !esFechaValida(fechaExacta)) {
+      throw new ErrorAplicacion('La fecha indicada no es válida', 400);
+    }
+
+    const diaSemana = String(peticion.query.diaSemana || '').trim();
+    if (diaSemana && !CLAVES_DIAS.includes(diaSemana)) {
+      throw new ErrorAplicacion('El día de la semana indicado no es válido', 400);
     }
 
     const horaDesde = obtenerLimiteHorario(
@@ -70,7 +108,7 @@ rutas.get('/disponibilidad', async (peticion, respuesta, siguiente) => {
       );
     }
 
-    const claveDia = CLAVES_DIAS[fecha.getDay()];
+    const limiteResultados = obtenerLimiteResultados(peticion.query.limite);
     const filtros = {};
     if (peticion.query.prestadorId) {
       filtros.prestadorId = peticion.query.prestadorId;
@@ -96,49 +134,65 @@ rutas.get('/disponibilidad', async (peticion, respuesta, siguiente) => {
         )
       : agendas;
 
-    const inicioDia = new Date(fecha);
-    inicioDia.setHours(0, 0, 0, 0);
-    const finDia = new Date(inicioDia);
-    finDia.setDate(finDia.getDate() + 1);
+    const fechasBusqueda = construirFechasBusqueda({ fechaExacta, diaSemana });
+    if (agendasFiltradas.length === 0 || fechasBusqueda.length === 0) {
+      return respuesta.json([]);
+    }
+
+    const primerRango = obtenerRangoDiaUtc(fechasBusqueda[0]);
+    const ultimoRango = obtenerRangoDiaUtc(
+      fechasBusqueda[fechasBusqueda.length - 1]
+    );
 
     const turnosOcupados = await Turno.find({
-      fecha: { $gte: inicioDia, $lt: finDia },
+      fecha: { $gte: primerRango.inicio, $lt: ultimoRango.fin },
       estado: 'RESERVADO',
-    }).select('agendaId hora');
+    }).select('agendaId fecha hora');
+
     const clavesOcupadas = new Set(
-      turnosOcupados.map((turno) => `${turno.agendaId}:${turno.hora}`)
+      turnosOcupados.map(
+        (turno) =>
+          `${turno.agendaId}:${formatearFechaPersistida(turno.fecha)}:${turno.hora}`
+      )
     );
 
     const ahora = new Date();
     const horariosDisponibles = [];
-    for (const agenda of agendasFiltradas) {
-      const dia = agenda.horario?.dias?.[claveDia];
-      if (!dia?.atiende) continue;
 
-      const duracionTurno = Number(agenda.horario?.duracionTurno || 30);
-      for (const bloque of dia.bloques || []) {
-        const desde = convertirAMinutos(bloque.horaInicio);
-        const hasta = convertirAMinutos(bloque.horaFin);
+    for (const fecha of fechasBusqueda) {
+      const claveDia = obtenerClaveDia(fecha);
 
-        for (
-          let cursorMinutos = desde;
-          cursorMinutos + duracionTurno <= hasta;
-          cursorMinutos += duracionTurno
-        ) {
-          if (horaDesde !== null && cursorMinutos < horaDesde) continue;
-          if (horaHasta !== null && cursorMinutos > horaHasta) continue;
+      for (const agenda of agendasFiltradas) {
+        const dia = agenda.horario?.dias?.[claveDia];
+        if (!dia?.atiende) continue;
 
-          const hora = convertirAHora(cursorMinutos);
-          const fechaHora = new Date(`${fechaTexto}T${hora}:00`);
-          if (fechaHora <= ahora) continue;
+        const duracionTurno = Number(agenda.horario?.duracionTurno || 30);
+        for (const bloque of dia.bloques || []) {
+          const desde = convertirAMinutos(bloque.horaInicio);
+          const hasta = convertirAMinutos(bloque.horaFin);
 
-          if (!clavesOcupadas.has(`${agenda._id}:${hora}`)) {
+          for (
+            let cursorMinutos = desde;
+            cursorMinutos + duracionTurno <= hasta;
+            cursorMinutos += duracionTurno
+          ) {
+            if (horaDesde !== null && cursorMinutos < horaDesde) continue;
+            if (horaHasta !== null && cursorMinutos > horaHasta) continue;
+
+            const hora = convertirAHora(cursorMinutos);
+            const fechaHora = crearFechaHoraArgentina(fecha, hora);
+            if (!fechaHora || fechaHora <= ahora) continue;
+
+            const claveOcupada = `${agenda._id}:${fecha}:${hora}`;
+            if (clavesOcupadas.has(claveOcupada)) continue;
+
             horariosDisponibles.push({
               agendaId: agenda._id,
               prestador: agenda.prestadorId,
               especialidad: agenda.especialidadId,
               centro: agenda.centroDeAtencionId,
-              fecha: fechaTexto,
+              fecha,
+              diaSemana: claveDia,
               hora,
               duracionTurno,
             });
@@ -147,11 +201,20 @@ rutas.get('/disponibilidad', async (peticion, respuesta, siguiente) => {
       }
     }
 
-    horariosDisponibles.sort((primero, segundo) =>
-      primero.hora.localeCompare(segundo.hora)
-    );
+    horariosDisponibles.sort((primero, segundo) => {
+      const porFecha = primero.fecha.localeCompare(segundo.fecha);
+      if (porFecha !== 0) return porFecha;
 
-    respuesta.json(horariosDisponibles);
+      const porHora = primero.hora.localeCompare(segundo.hora);
+      if (porHora !== 0) return porHora;
+
+      return String(primero.prestador?.nombre || '').localeCompare(
+        String(segundo.prestador?.nombre || ''),
+        'es'
+      );
+    });
+
+    respuesta.json(horariosDisponibles.slice(0, limiteResultados));
   } catch (error) {
     siguiente(error);
   }
