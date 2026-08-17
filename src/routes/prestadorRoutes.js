@@ -9,7 +9,6 @@ router.get('/',
     #swagger.tags = ['Prestadores']
     #swagger.path = '/prestadores'
   */
-  genericMiddleware.existsAnyByModel(Prestador),
   prestadorController.getPrestadores
 );
 

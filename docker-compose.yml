@@ -1,7 +1,7 @@
 services:
   mongo:
     image: mongo
-    container_name: mongo-container
+    container_name: mongo-container-db-os
     ports:
       - "27017:27017"
     environment:
@@ -13,7 +13,7 @@ services:
 
   redis:
     image: redis
-    container_name: redis-container
+    container_name: redis-container-cache-os
     ports:
       - "6379:6379"
     volumes:

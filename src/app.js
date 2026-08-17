@@ -1,83 +1,182 @@
 const express = require('express');
 const cors = require('cors');
-const swaggerUi = require('swagger-ui-express');
-const swaggerFile = require('../swagger-output.json');
+const interfazSwagger = require('swagger-ui-express');
+const archivoSwagger = require('../swagger-output.json');
 const { mongo } = require('./config');
-const { prestadorRutas, especialidadRutas, agendaRutas, afiliadoRutas, situacionTerapeuticaRutas } = require("./routes");
-const { logRequest } = require("./middlewares/genericMiddleware");
-const { runSeed } = require('./reiniciarDB');
+const {
+  prestadorRutas,
+  especialidadRutas,
+  agendaRutas,
+  afiliadoRutas,
+  situacionTerapeuticaRutas,
+} = require('./routes');
+const autenticacionRutas = require('./routes/autenticacionRutas');
+const disponibilidadTurnosRutas = require('./routes/disponibilidadTurnosRutas');
+const portalAfiliadoRutas = require('./routes/portalAfiliadoRutas');
+const portalPrestadorRutas = require('./routes/portalPrestadorRutas');
+const reporteRutas = require('./routes/reporteRutas');
+const { logRequest: registrarPeticion } = require('./middlewares/genericMiddleware');
+const {
+  autenticar,
+  requerirRol,
+  requerirContrasenaActualizada,
+} = require('./middlewares/autenticacionMiddleware');
+const { runSeed: ejecutarCargaInicial } = require('./reiniciarDB');
 
-const APP = express();
-let demoSeedPromise;
+const APLICACION = express();
+let promesaCargaDemostracion;
 
-const allowedOrigins = (process.env.CORS_ORIGIN || '').split(',').map((origin) => origin.trim()).filter(Boolean);
-const corsOptions = {
-  origin(origin, callback) {
-    if (!origin || allowedOrigins.length === 0 || allowedOrigins.includes(origin)) return callback(null, true);
-    return callback(new Error('Origen no permitido por CORS'));
+const origenesPermitidos = (process.env.CORS_ORIGIN || '')
+  .split(',')
+  .map((origen) => origen.trim())
+  .filter(Boolean);
+
+const opcionesCors = {
+  origin(origen, responderOrigen) {
+    if (
+      !origen ||
+      origenesPermitidos.length === 0 ||
+      origenesPermitidos.includes(origen)
+    ) {
+      return responderOrigen(null, true);
+    }
+    return responderOrigen(new Error('Origen no permitido por CORS'));
   },
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
 };
 
-const ensureDatabase = async (req, res, next) => {
+const asegurarBaseDatos = async (_peticion, _respuesta, siguiente) => {
   try {
     await mongo.conectarDB();
     if (process.env.SEED_DEMO_DATA === 'true') {
-      demoSeedPromise ??= runSeed({ clean: false });
-      await demoSeedPromise;
+      promesaCargaDemostracion ??= ejecutarCargaInicial({ clean: false });
+      await promesaCargaDemostracion;
     }
-    next();
-  } catch (error) { next(error); }
+    siguiente();
+  } catch (error) {
+    siguiente(error);
+  }
 };
 
-const configureApp = (app) => {
-  app.disable('x-powered-by');
-  app.use(cors(corsOptions));
-  app.use(express.json());
-  app.get('/', (req, res) => res.json({ name: 'MedIntegral API', status: 'online', documentation: '/doc', health: '/health' }));
-  app.get('/health', (req, res) => res.json({ status: 'ok', service: 'medintegral-api' }));
-  delete swaggerFile.host;
-  delete swaggerFile.schemes;
-  app.use('/doc', swaggerUi.serve, swaggerUi.setup(swaggerFile));
-  app.use(ensureDatabase);
-  app.use(logRequest);
-  app.use("/prestadores", prestadorRutas);
-  app.use("/especialidades", especialidadRutas);
-  app.use("/agendas", agendaRutas);
-  app.use("/afiliados", afiliadoRutas);
-  app.use("/situaciones-terapeuticas", situacionTerapeuticaRutas);
+const protegerAdministracion = [
+  autenticar,
+  requerirRol('ADMIN'),
+  requerirContrasenaActualizada,
+];
+const protegerPortalAfiliado = [
+  autenticar,
+  requerirRol('AFILIADO'),
+  requerirContrasenaActualizada,
+];
+const protegerPortalPrestador = [
+  autenticar,
+  requerirRol('PRESTADOR'),
+  requerirContrasenaActualizada,
+];
 
-  app.use((err, req, res, next) => {
-    let status = err.statusCode || err.status || 500;
-    let code = err.code ?? null;
-    let message = err.message || 'Error interno del servidor';
+const configurarAplicacion = (aplicacion) => {
+  aplicacion.disable('x-powered-by');
+  aplicacion.use(cors(opcionesCors));
+  aplicacion.use(express.json({ limit: '1mb' }));
 
-    if (err.name === 'ValidationError') {
-      status = 400;
-      code = 'VALIDACION_INVALIDA';
-      message = Object.values(err.errors || {}).map((item) => item.message).join('. ') || message;
-    } else if (err.name === 'CastError') {
-      status = 400;
-      code = 'ID_INVALIDO';
-      message = `El valor '${err.value}' no es válido para ${err.path}`;
-    } else if (err.code === 11000) {
-      status = 409;
-      code = 'DATO_DUPLICADO';
-      const field = Object.keys(err.keyPattern || err.keyValue || {})[0];
-      message = field ? `Ya existe un registro con el mismo valor de ${field}` : 'El registro ya existe';
+  aplicacion.get('/', (_peticion, respuesta) =>
+    respuesta.json({
+      nombre: 'MedIntegral API',
+      estado: 'en-linea',
+      documentacion: '/doc',
+      salud: '/health',
+    })
+  );
+  aplicacion.get('/health', (_peticion, respuesta) =>
+    respuesta.json({ estado: 'ok', servicio: 'medintegral-api' })
+  );
+
+  delete archivoSwagger.host;
+  delete archivoSwagger.schemes;
+  aplicacion.use(
+    '/doc',
+    interfazSwagger.serve,
+    interfazSwagger.setup(archivoSwagger)
+  );
+
+  aplicacion.use(asegurarBaseDatos);
+  aplicacion.use(registrarPeticion);
+  aplicacion.use('/autenticacion', autenticacionRutas);
+
+  aplicacion.use('/prestadores', ...protegerAdministracion, prestadorRutas);
+  aplicacion.use('/especialidades', ...protegerAdministracion, especialidadRutas);
+  aplicacion.use('/agendas', ...protegerAdministracion, agendaRutas);
+  aplicacion.use('/afiliados', ...protegerAdministracion, afiliadoRutas);
+  aplicacion.use(
+    '/situaciones-terapeuticas',
+    ...protegerAdministracion,
+    situacionTerapeuticaRutas
+  );
+  aplicacion.use('/reportes', ...protegerAdministracion, reporteRutas);
+
+  aplicacion.use(
+    '/portal-afiliado',
+    ...protegerPortalAfiliado,
+    disponibilidadTurnosRutas
+  );
+  aplicacion.use(
+    '/portal-afiliado',
+    ...protegerPortalAfiliado,
+    portalAfiliadoRutas
+  );
+  aplicacion.use(
+    '/portal-prestador',
+    ...protegerPortalPrestador,
+    portalPrestadorRutas
+  );
+
+  aplicacion.use((error, peticion, respuesta, _siguiente) => {
+    let estado = error.statusCode || error.status || 500;
+    let codigo = error.code ?? null;
+    let mensaje = error.message || 'Error interno del servidor';
+
+    if (error.name === 'ValidationError') {
+      estado = 400;
+      codigo = 'VALIDACION_INVALIDA';
+      mensaje =
+        Object.values(error.errors || {})
+          .map((detalle) => detalle.message)
+          .join('. ') || mensaje;
+    } else if (error.name === 'CastError') {
+      estado = 400;
+      codigo = 'ID_INVALIDO';
+      mensaje = `El valor '${error.value}' no es válido para ${error.path}`;
+    } else if (error.code === 11000) {
+      estado = 409;
+      codigo = 'DATO_DUPLICADO';
+      const campo = Object.keys(error.keyPattern || error.keyValue || {})[0];
+      mensaje = campo
+        ? `Ya existe un registro con el mismo valor de ${campo}`
+        : 'El registro ya existe';
     }
 
-    console.error({ method: req.method, url: req.url, status, code, error: message });
-    res.status(status).json({
-      error: message,
-      message,
-      code,
-      ...(err.existingAgendaId ? { existingAgendaId: err.existingAgendaId } : {})
+    console.error({
+      metodo: peticion.method,
+      ruta: peticion.url,
+      estado,
+      codigo,
+      error: mensaje,
+    });
+
+    respuesta.status(estado).json({
+      error: mensaje,
+      mensaje,
+      codigo,
+      ...(error.existingAgendaId
+        ? { agendaExistenteId: error.existingAgendaId }
+        : {}),
     });
   });
-  return app;
+
+  return aplicacion;
 };
 
-configureApp(APP);
-module.exports = APP;
-module.exports.configureApp = configureApp;
+configurarAplicacion(APLICACION);
+module.exports = APLICACION;
+module.exports.configurarAplicacion = configurarAplicacion;

@@ -2,14 +2,13 @@ const { Router } = require("express");
 const router = Router();
 const { agendaController } = require("../controllers");
 const { genericMiddleware, agendaMiddleware } = require("../middlewares");
-const { Agenda, Prestador } = require("../models");
+const { Agenda } = require("../models");
 
 router.get('/',
   /* 
     #swagger.tags = ['Agendas']
     #swagger.path = '/agendas'
   */
-  genericMiddleware.existsAnyByModel(Agenda),
   agendaController.getAgendas
 );
 

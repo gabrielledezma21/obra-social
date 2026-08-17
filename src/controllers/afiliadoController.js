@@ -1,65 +1,283 @@
-const { Afiliado, Direccion, SituacionTerapeutica } = require("../models");
-const AppError = require("../exceptions/appError");
-const { redisClient } = require("../config/redisClient");
-const { getModelsCache, getModelCacheById, deleteModelsCache, deleteModelCacheById } = require("./genericController");
-const afiliadoService = require("../services/afiliadoService");
+const { Afiliado, Direccion, SituacionTerapeutica } = require('../models');
+const Usuario = require('../models/usuario');
+const Solicitud = require('../models/solicitud');
+const Turno = require('../models/turno');
+const {
+  HistoriaClinica,
+  SituacionAfiliado,
+} = require('../models/historiaClinica');
+const ErrorAplicacion = require('../exceptions/appError');
+const { redisClient: clienteRedis } = require('../config/redisClient');
+const {
+  getModelsCache: obtenerCacheModelos,
+  getModelCacheById: obtenerCacheModeloPorId,
+  deleteModelsCache: eliminarCacheModelos,
+  deleteModelCacheById: eliminarCacheModeloPorId,
+} = require('./genericController');
+const servicioAfiliado = require('../services/afiliadoService');
 
-const populateAfiliado = (query) => query
-  .populate('situacionesTerapeuticas')
-  .populate('direccionId')
-  .populate('familiares')
-  .populate('afiliadoTitularId', 'numeroAfiliado nombre apellido');
+const completarAfiliado = (consulta) =>
+  consulta
+    .populate('situacionesTerapeuticas')
+    .populate('direccionId')
+    .populate('direccionesIds')
+    .populate({
+      path: 'familiares',
+      populate: [
+        { path: 'direccionId' },
+        { path: 'direccionesIds' },
+        { path: 'situacionesTerapeuticas' },
+      ],
+    })
+    .populate(
+      'afiliadoTitularId',
+      'numeroAfiliado numeroIntegrante nombre apellido'
+    );
 
-const getAfiliados = async (_, res) => {
-  const cached = await getModelsCache(Afiliado);
-  const afiliados = cached ? JSON.parse(cached) : await Afiliado.find().populate('situacionesTerapeuticas').populate('direccionId');
-  await redisClient.set('Afiliados:todos', JSON.stringify(afiliados), { EX: 60 });
-  res.status(200).json(afiliados);
-};
+const construirConsultaBusqueda = async (parametros = {}) => {
+  const filtros = {};
 
-const getAfiliadoById = async (req, res) => {
-  const cached = await getModelCacheById(Afiliado, req.params.id);
-  const afiliado = cached ? JSON.parse(cached) : await populateAfiliado(Afiliado.findById(req.params.id));
-  await redisClient.set(`Afiliado:${req.params.id}`, JSON.stringify(afiliado), { EX: 60 });
-  res.status(200).json(afiliado);
-};
-
-const createAfiliado = async (req, res) => {
-  const created = await afiliadoService.createAfiliado(req.body);
-  const afiliado = await populateAfiliado(Afiliado.findById(created._id));
-  await redisClient.set(`Afiliado:${afiliado._id}`, JSON.stringify(afiliado), { EX: 60 });
-  await deleteModelsCache(Afiliado);
-  if (afiliado.afiliadoTitularId?._id) await deleteModelCacheById(Afiliado, afiliado.afiliadoTitularId._id);
-  res.status(201).json(afiliado);
-};
-
-const deleteAfiliado = async (req, res) => {
-  const afiliado = await Afiliado.findById(req.params.id);
-  if (afiliado.parentesco === 'Titular' && await Afiliado.exists({ afiliadoTitularId: afiliado._id })) {
-    throw new AppError('No se puede eliminar un titular que todavía tiene integrantes en su grupo familiar', 409, 'TITULAR_CON_FAMILIARES');
+  if (parametros.apellido) {
+    filtros.apellido = { $regex: parametros.apellido, $options: 'i' };
   }
-  await Afiliado.findByIdAndDelete(afiliado._id);
-  await SituacionTerapeutica.updateMany(
-    { afiliados: afiliado._id },
-    { $pull: { afiliados: afiliado._id } }
+
+  if (parametros.fechaNacimiento) {
+    const inicio = new Date(parametros.fechaNacimiento);
+    const fin = new Date(inicio);
+    fin.setDate(fin.getDate() + 1);
+    filtros.fechaNacimiento = { $gte: inicio, $lt: fin };
+  }
+
+  if (parametros.credencial) {
+    const [numero, integrante] = String(parametros.credencial).split('-');
+    if (numero) filtros.numeroAfiliado = Number(numero);
+    if (integrante) filtros.numeroIntegrante = Number(integrante);
+  }
+
+  if (parametros.direccion) {
+    const direcciones = await Direccion.find({
+      $or: [
+        { calle: { $regex: parametros.direccion, $options: 'i' } },
+        { localidad: { $regex: parametros.direccion, $options: 'i' } },
+        { codigoPostal: { $regex: parametros.direccion, $options: 'i' } },
+      ],
+    }).select('_id');
+    const idsDirecciones = direcciones.map((direccion) => direccion._id);
+    filtros.$or = [
+      { direccionId: { $in: idsDirecciones } },
+      { direccionesIds: { $in: idsDirecciones } },
+    ];
+  }
+
+  if (parametros.desde || parametros.hasta) {
+    filtros.fechaAlta = {};
+    if (parametros.desde) {
+      filtros.fechaAlta.$gte = new Date(parametros.desde);
+    }
+    if (parametros.hasta) {
+      const fin = new Date(parametros.hasta);
+      fin.setDate(fin.getDate() + 1);
+      filtros.fechaAlta.$lt = fin;
+    }
+  }
+
+  return filtros;
+};
+
+const obtenerAfiliados = async (peticion, respuesta) => {
+  const tieneFiltros = Object.keys(peticion.query || {}).length > 0;
+  const cache = tieneFiltros ? null : await obtenerCacheModelos(Afiliado);
+  const filtros = tieneFiltros
+    ? await construirConsultaBusqueda(peticion.query)
+    : {};
+  const afiliados = cache
+    ? JSON.parse(cache)
+    : await Afiliado.find(filtros)
+        .populate('situacionesTerapeuticas')
+        .populate('direccionId')
+        .populate('direccionesIds');
+
+  if (!tieneFiltros) {
+    await clienteRedis.set(
+      'Afiliados:todos',
+      JSON.stringify(afiliados),
+      { EX: 60 }
+    );
+  }
+
+  respuesta.status(200).json(afiliados);
+};
+
+const obtenerAfiliadoPorId = async (peticion, respuesta) => {
+  const cache = await obtenerCacheModeloPorId(Afiliado, peticion.params.id);
+  const afiliado = cache
+    ? JSON.parse(cache)
+    : await completarAfiliado(Afiliado.findById(peticion.params.id));
+
+  await clienteRedis.set(
+    `Afiliado:${peticion.params.id}`,
+    JSON.stringify(afiliado),
+    { EX: 60 }
   );
-  const direccionEnUso = await Afiliado.exists({ direccionId: afiliado.direccionId });
-  if (!direccionEnUso) await Direccion.findByIdAndDelete(afiliado.direccionId);
-  await deleteModelsCache(Afiliado);
-  await deleteModelCacheById(Afiliado, afiliado._id);
-  if (afiliado.afiliadoTitularId) await deleteModelCacheById(Afiliado, afiliado.afiliadoTitularId);
-  res.status(204).send();
+  respuesta.status(200).json(afiliado);
 };
 
-const updateAfiliado = async (req, res) => {
-  const current = await Afiliado.findById(req.params.id);
-  await afiliadoService.updateAfiliado(req.params.id, req.body);
-  const afiliado = await populateAfiliado(Afiliado.findById(req.params.id));
-  await deleteModelCacheById(Afiliado, req.params.id);
-  await deleteModelsCache(Afiliado);
-  if (current?.afiliadoTitularId) await deleteModelCacheById(Afiliado, current.afiliadoTitularId);
-  await redisClient.set(`Afiliado:${afiliado._id}`, JSON.stringify(afiliado), { EX: 60 });
-  res.status(200).json(afiliado);
+const crearAfiliado = async (peticion, respuesta) => {
+  const afiliadoCreado = await servicioAfiliado.crearAfiliado(peticion.body);
+  const afiliado = await completarAfiliado(
+    Afiliado.findById(afiliadoCreado._id)
+  );
+
+  await clienteRedis.set(
+    `Afiliado:${afiliado._id}`,
+    JSON.stringify(afiliado),
+    { EX: 60 }
+  );
+  await eliminarCacheModelos(Afiliado);
+
+  if (afiliado.afiliadoTitularId?._id) {
+    await eliminarCacheModeloPorId(
+      Afiliado,
+      afiliado.afiliadoTitularId._id
+    );
+  }
+
+  respuesta.status(201).json(afiliado);
 };
 
-module.exports = { getAfiliados, getAfiliadoById, createAfiliado, deleteAfiliado, updateAfiliado };
+const limpiarDirecciones = async (integrantes) => {
+  const idsDirecciones = [
+    ...new Set(
+      integrantes.flatMap((integrante) =>
+        [integrante.direccionId, ...(integrante.direccionesIds || [])]
+          .filter(Boolean)
+          .map(String)
+      )
+    ),
+  ];
+
+  if (idsDirecciones.length) {
+    await Direccion.deleteMany({ _id: { $in: idsDirecciones } });
+  }
+};
+
+const existeHistorialOperativo = async (idsIntegrantes) => {
+  const filtrosAfiliado = { $in: idsIntegrantes };
+  const resultados = await Promise.all([
+    Usuario.exists({ afiliadoId: filtrosAfiliado }),
+    Solicitud.exists({
+      $or: [
+        { afiliadoId: filtrosAfiliado },
+        { creadorAfiliadoId: filtrosAfiliado },
+      ],
+    }),
+    Turno.exists({
+      $or: [
+        { afiliadoId: filtrosAfiliado },
+        { reservadoPorAfiliadoId: filtrosAfiliado },
+      ],
+    }),
+    HistoriaClinica.exists({ afiliadoId: filtrosAfiliado }),
+    SituacionAfiliado.exists({ afiliadoId: filtrosAfiliado }),
+  ]);
+
+  return resultados.some(Boolean);
+};
+
+const eliminarAfiliado = async (peticion, respuesta) => {
+  const afiliado = await Afiliado.findById(peticion.params.id);
+  const integrantes =
+    afiliado.parentesco === 'Titular'
+      ? await Afiliado.find({
+          $or: [
+            { _id: afiliado._id },
+            { afiliadoTitularId: afiliado._id },
+          ],
+        })
+      : [afiliado];
+  const idsIntegrantes = integrantes.map((integrante) => integrante._id);
+
+  if (await existeHistorialOperativo(idsIntegrantes)) {
+    throw new ErrorAplicacion(
+      'No se puede eliminar físicamente un afiliado que tiene historial operativo o clínico. Utilizá la fecha de baja para conservar su historial.',
+      409,
+      'AFILIADO_CON_HISTORIAL'
+    );
+  }
+
+  await Afiliado.deleteMany({ _id: { $in: idsIntegrantes } });
+  await SituacionTerapeutica.updateMany(
+    { afiliados: { $in: idsIntegrantes } },
+    { $pull: { afiliados: { $in: idsIntegrantes } } }
+  );
+  await limpiarDirecciones(integrantes);
+  await eliminarCacheModelos(Afiliado);
+  await Promise.all(
+    idsIntegrantes.map((id) => eliminarCacheModeloPorId(Afiliado, id))
+  );
+
+  if (afiliado.afiliadoTitularId) {
+    await eliminarCacheModeloPorId(Afiliado, afiliado.afiliadoTitularId);
+  }
+
+  respuesta.status(204).send();
+};
+
+const obtenerIdsGrupoParaCache = async (afiliadoActual, peticion) => {
+  if (
+    !peticion.body.aplicarAGrupoFamiliar ||
+    afiliadoActual?.parentesco !== 'Titular'
+  ) {
+    return [];
+  }
+
+  const integrantes = await Afiliado.find({
+    $or: [
+      { _id: afiliadoActual._id },
+      { afiliadoTitularId: afiliadoActual._id },
+    ],
+  }).select('_id');
+
+  return integrantes.map((integrante) => integrante._id);
+};
+
+const actualizarAfiliado = async (peticion, respuesta) => {
+  const afiliadoActual = await Afiliado.findById(peticion.params.id);
+  const idsGrupo = await obtenerIdsGrupoParaCache(afiliadoActual, peticion);
+
+  await servicioAfiliado.actualizarAfiliado(
+    peticion.params.id,
+    peticion.body
+  );
+  const afiliado = await completarAfiliado(
+    Afiliado.findById(peticion.params.id)
+  );
+
+  const idsCache = new Set([
+    String(peticion.params.id),
+    ...idsGrupo.map(String),
+  ]);
+  if (afiliadoActual?.afiliadoTitularId) {
+    idsCache.add(String(afiliadoActual.afiliadoTitularId));
+  }
+
+  await eliminarCacheModelos(Afiliado);
+  await Promise.all(
+    [...idsCache].map((id) => eliminarCacheModeloPorId(Afiliado, id))
+  );
+
+  await clienteRedis.set(
+    `Afiliado:${afiliado._id}`,
+    JSON.stringify(afiliado),
+    { EX: 60 }
+  );
+  respuesta.status(200).json(afiliado);
+};
+
+module.exports = {
+  obtenerAfiliados,
+  obtenerAfiliadoPorId,
+  crearAfiliado,
+  eliminarAfiliado,
+  actualizarAfiliado,
+};
