@@ -223,8 +223,28 @@ const eliminarAfiliado = async (peticion, respuesta) => {
   respuesta.status(204).send();
 };
 
+const obtenerIdsGrupoParaCache = async (afiliadoActual, peticion) => {
+  if (
+    !peticion.body.aplicarAGrupoFamiliar ||
+    afiliadoActual?.parentesco !== 'Titular'
+  ) {
+    return [];
+  }
+
+  const integrantes = await Afiliado.find({
+    $or: [
+      { _id: afiliadoActual._id },
+      { afiliadoTitularId: afiliadoActual._id },
+    ],
+  }).select('_id');
+
+  return integrantes.map((integrante) => integrante._id);
+};
+
 const actualizarAfiliado = async (peticion, respuesta) => {
   const afiliadoActual = await Afiliado.findById(peticion.params.id);
+  const idsGrupo = await obtenerIdsGrupoParaCache(afiliadoActual, peticion);
+
   await servicioAfiliado.actualizarAfiliado(
     peticion.params.id,
     peticion.body
@@ -233,15 +253,18 @@ const actualizarAfiliado = async (peticion, respuesta) => {
     Afiliado.findById(peticion.params.id)
   );
 
-  await eliminarCacheModeloPorId(Afiliado, peticion.params.id);
-  await eliminarCacheModelos(Afiliado);
-
+  const idsCache = new Set([
+    String(peticion.params.id),
+    ...idsGrupo.map(String),
+  ]);
   if (afiliadoActual?.afiliadoTitularId) {
-    await eliminarCacheModeloPorId(
-      Afiliado,
-      afiliadoActual.afiliadoTitularId
-    );
+    idsCache.add(String(afiliadoActual.afiliadoTitularId));
   }
+
+  await eliminarCacheModelos(Afiliado);
+  await Promise.all(
+    [...idsCache].map((id) => eliminarCacheModeloPorId(Afiliado, id))
+  );
 
   await clienteRedis.set(
     `Afiliado:${afiliado._id}`,
