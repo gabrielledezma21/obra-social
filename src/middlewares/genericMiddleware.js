@@ -1,53 +1,119 @@
 const mongoose = require('mongoose');
-const AppError = require("../exceptions/appError");
+const ErrorAplicacion = require('../exceptions/appError');
 
-// se utiliza para ver que peticion se hizo y que se envio, es para debuggear
-const logRequest = (req, _, next) => {
-    console.log({ method: req.method, url: req.url, fechaHora: new Date(), body: req.body, params: req.params });
-    next();
+const CAMPOS_SENSIBLES = new Set([
+  'contrasena',
+  'contraseña',
+  'contrasenaactual',
+  'contraseñaactual',
+  'contrasenanueva',
+  'contraseñanueva',
+  'password',
+  'passwordactual',
+  'passwordnuevo',
+  'token',
+  'accesstoken',
+  'refreshtoken',
+  'hashcontrasena',
+  'secret',
+  'secreto',
+]);
+
+const ocultarDatosSensibles = (valor) => {
+  if (Array.isArray(valor)) {
+    return valor.map((elemento) => ocultarDatosSensibles(elemento));
+  }
+
+  if (!valor || typeof valor !== 'object') return valor;
+
+  return Object.fromEntries(
+    Object.entries(valor).map(([clave, contenido]) => {
+      const claveNormalizada = clave.toLocaleLowerCase('es');
+      return [
+        clave,
+        CAMPOS_SENSIBLES.has(claveNormalizada)
+          ? '[OCULTO]'
+          : ocultarDatosSensibles(contenido),
+      ];
+    })
+  );
 };
 
-// Se utiliza para verificar que al menos exista una instancia de ese modelo en la base de datos
+// Se utiliza para ver qué petición se hizo y qué se envió sin exponer credenciales.
+const logRequest = (peticion, _respuesta, siguiente) => {
+  console.log({
+    method: peticion.method,
+    url: peticion.url,
+    fechaHora: new Date(),
+    body: ocultarDatosSensibles(peticion.body),
+    params: ocultarDatosSensibles(peticion.params),
+  });
+  siguiente();
+};
+
+// Se utiliza para verificar que al menos exista una instancia de ese modelo en la base de datos.
 const existsAnyByModel = (modelo) => {
-    return async (req, res, next) => {
-        try {
-            const data = await modelo.findOne();
-            if (!data) {
-                return next(new AppError(`No hay ningun ${modelo.modelName} registrado`, 404, 'NO_HAY_NINGUNO_REGISTRADO'));
-            }
-            next();
-        } catch (error) {
-            return next(error);
-        }
+  return async (_peticion, _respuesta, siguiente) => {
+    try {
+      const datos = await modelo.findOne();
+      if (!datos) {
+        return siguiente(
+          new ErrorAplicacion(
+            `No hay ningun ${modelo.modelName} registrado`,
+            404,
+            'NO_HAY_NINGUNO_REGISTRADO'
+          )
+        );
+      }
+      siguiente();
+    } catch (error) {
+      return siguiente(error);
     }
+  };
 };
 
-// Se utiliza para verificar que exista una instancia de ese modelo en la base de datos
+// Se utiliza para verificar que exista una instancia de ese modelo en la base de datos.
 const existsModelById = (modelo) => {
-    return async (req, res, next) => {
-        try {
-            const data = await modelo.findById(req.params.id);
-            if (!data) {
-                return next(new AppError(`No hay ningun ${modelo.modelName} con id ${req.params.id}`, 404, 'NO_HAY_NINGUNO_CON_ESE_ID'));
-            }
-            next();
-        } catch (error) {
-            return next(error);
-        }
+  return async (peticion, _respuesta, siguiente) => {
+    try {
+      const datos = await modelo.findById(peticion.params.id);
+      if (!datos) {
+        return siguiente(
+          new ErrorAplicacion(
+            `No hay ningun ${modelo.modelName} con id ${peticion.params.id}`,
+            404,
+            'NO_HAY_NINGUNO_CON_ESE_ID'
+          )
+        );
+      }
+      siguiente();
+    } catch (error) {
+      return siguiente(error);
     }
+  };
 };
 
 const validarCamposExactos = (modelo) => {
-    return (req, res, next) => {
-        const camposValidos = Object.keys(modelo.schema.paths);
-        const camposRecibidos = Object.keys(req.body);
-        const camposInvalidos = camposRecibidos.filter(campo => !camposValidos.includes(campo));
+  return (peticion, _respuesta, siguiente) => {
+    const camposValidos = Object.keys(modelo.schema.paths);
+    const camposRecibidos = Object.keys(peticion.body);
+    const camposInvalidos = camposRecibidos.filter(
+      (campo) => !camposValidos.includes(campo)
+    );
 
-        if (camposInvalidos.length > 0) {
-            return next(new AppError(`Hay campos inválidos`, 400, 'CAMPOS_INVALIDOS'));
-        }
-        next()
+    if (camposInvalidos.length > 0) {
+      return siguiente(
+        new ErrorAplicacion('Hay campos inválidos', 400, 'CAMPOS_INVALIDOS')
+      );
     }
-}
+    siguiente();
+  };
+};
 
-module.exports = { logRequest, existsAnyByModel, existsModelById, validarCamposExactos };
+module.exports = {
+  logRequest,
+  existsAnyByModel,
+  existsModelById,
+  validarCamposExactos,
+  ocultarDatosSensibles,
+};
