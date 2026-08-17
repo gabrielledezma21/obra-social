@@ -1,4 +1,12 @@
 const { Afiliado, Direccion, SituacionTerapeutica } = require('../models');
+const Usuario = require('../models/usuario');
+const Solicitud = require('../models/solicitud');
+const Turno = require('../models/turno');
+const {
+  HistoriaClinica,
+  SituacionAfiliado,
+} = require('../models/historiaClinica');
+const ErrorAplicacion = require('../exceptions/appError');
 const { redisClient: clienteRedis } = require('../config/redisClient');
 const {
   getModelsCache: obtenerCacheModelos,
@@ -153,6 +161,29 @@ const limpiarDirecciones = async (integrantes) => {
   }
 };
 
+const existeHistorialOperativo = async (idsIntegrantes) => {
+  const filtrosAfiliado = { $in: idsIntegrantes };
+  const resultados = await Promise.all([
+    Usuario.exists({ afiliadoId: filtrosAfiliado }),
+    Solicitud.exists({
+      $or: [
+        { afiliadoId: filtrosAfiliado },
+        { creadorAfiliadoId: filtrosAfiliado },
+      ],
+    }),
+    Turno.exists({
+      $or: [
+        { afiliadoId: filtrosAfiliado },
+        { reservadoPorAfiliadoId: filtrosAfiliado },
+      ],
+    }),
+    HistoriaClinica.exists({ afiliadoId: filtrosAfiliado }),
+    SituacionAfiliado.exists({ afiliadoId: filtrosAfiliado }),
+  ]);
+
+  return resultados.some(Boolean);
+};
+
 const eliminarAfiliado = async (peticion, respuesta) => {
   const afiliado = await Afiliado.findById(peticion.params.id);
   const integrantes =
@@ -165,6 +196,14 @@ const eliminarAfiliado = async (peticion, respuesta) => {
         })
       : [afiliado];
   const idsIntegrantes = integrantes.map((integrante) => integrante._id);
+
+  if (await existeHistorialOperativo(idsIntegrantes)) {
+    throw new ErrorAplicacion(
+      'No se puede eliminar físicamente un afiliado que tiene historial operativo o clínico. Utilizá la fecha de baja para conservar su historial.',
+      409,
+      'AFILIADO_CON_HISTORIAL'
+    );
+  }
 
   await Afiliado.deleteMany({ _id: { $in: idsIntegrantes } });
   await SituacionTerapeutica.updateMany(
