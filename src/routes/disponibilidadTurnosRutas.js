@@ -1,6 +1,7 @@
 const { Router } = require('express');
 const { Agenda } = require('../models');
 const Turno = require('../models/turno');
+const ErrorAplicacion = require('../exceptions/appError');
 const {
   autenticar,
   requerirRol,
@@ -39,10 +40,8 @@ const obtenerLimiteHorario = (valor, nombre) => {
   if (!valor) return null;
 
   const minutos = convertirAMinutos(valor);
-  if (!Number.isFinite(minutos) || minutos < 0 || minutos > 1439) {
-    const error = new Error(`El ${nombre} debe tener formato HH:mm`);
-    error.statusCode = 400;
-    throw error;
+  if (!/^\d{2}:\d{2}$/.test(String(valor)) || !Number.isFinite(minutos) || minutos < 0 || minutos > 1439) {
+    throw new ErrorAplicacion(`El ${nombre} debe tener formato HH:mm`, 400);
   }
 
   return minutos;
@@ -53,17 +52,22 @@ rutas.get('/disponibilidad', async (peticion, respuesta, siguiente) => {
     const fechaTexto = String(peticion.query.fecha || '').trim();
     const fecha = new Date(`${fechaTexto}T12:00:00`);
     if (!fechaTexto || Number.isNaN(fecha.getTime())) {
-      return respuesta
-        .status(400)
-        .json({ message: 'Debe indicar una fecha válida' });
+      throw new ErrorAplicacion('Debe indicar una fecha válida', 400);
     }
 
-    const horaDesde = obtenerLimiteHorario(peticion.query.horaDesde, 'horario desde');
-    const horaHasta = obtenerLimiteHorario(peticion.query.horaHasta, 'horario hasta');
+    const horaDesde = obtenerLimiteHorario(
+      peticion.query.horaDesde,
+      'horario desde'
+    );
+    const horaHasta = obtenerLimiteHorario(
+      peticion.query.horaHasta,
+      'horario hasta'
+    );
     if (horaDesde !== null && horaHasta !== null && horaDesde > horaHasta) {
-      return respuesta.status(400).json({
-        message: 'El horario desde no puede ser posterior al horario hasta',
-      });
+      throw new ErrorAplicacion(
+        'El horario desde no puede ser posterior al horario hasta',
+        400
+      );
     }
 
     const claveDia = CLAVES_DIAS[fecha.getDay()];
