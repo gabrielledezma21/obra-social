@@ -1,5 +1,5 @@
 const { Router } = require('express');
-const { Afiliado, Prestador } = require('../models');
+const { Afiliado, Prestador, SituacionTerapeutica } = require('../models');
 const Solicitud = require('../models/solicitud');
 const Turno = require('../models/turno');
 const {
@@ -14,6 +14,15 @@ const {
 
 const rutas = Router();
 rutas.use(autenticar, requerirRol('PRESTADOR'));
+
+const escaparRegex = (valor) => {
+  const especiales = '\\^$.*+?()[]{}|';
+  return [...String(valor || '')]
+    .map((caracter) =>
+      especiales.includes(caracter) ? '\\' + caracter : caracter
+    )
+    .join('');
+};
 
 const obtenerAlcancePrestador = async (prestadorId) => {
   const prestador = await Prestador.findById(prestadorId);
@@ -199,27 +208,54 @@ rutas.post('/solicitudes/:id/estado', async (peticion, respuesta, siguiente) => 
 rutas.get('/afiliados/buscar', async (peticion, respuesta, siguiente) => {
   try {
     const textoBusqueda = String(peticion.query.busqueda || '').trim();
-    const numeroBusqueda = Number(textoBusqueda);
-    const filtros = textoBusqueda
-      ? {
-          $or: [
-            ...(Number.isFinite(numeroBusqueda)
-              ? [{ numeroAfiliado: numeroBusqueda }]
-              : []),
-            { apellido: { $regex: textoBusqueda, $options: 'i' } },
-            {
-              'telefonos.numero': {
-                $regex: textoBusqueda.replace(/\D/g, ''),
-              },
-            },
-          ],
-        }
-      : {};
+    if (!textoBusqueda) {
+      return respuesta.json([]);
+    }
 
-    const afiliados = await Afiliado.find(filtros)
-      .limit(30)
-      .populate('familiares');
+    const textoSeguro = escaparRegex(textoBusqueda);
+    const digitosBusqueda = textoBusqueda.replace(/\D/g, '');
+    const numeroBusqueda = Number(digitosBusqueda);
+    const credencial = /^(\d{1,7})-(\d{1,2})$/.exec(textoBusqueda);
+    const condiciones = [
+      { nombre: { $regex: textoSeguro, $options: 'i' } },
+      { apellido: { $regex: textoSeguro, $options: 'i' } },
+    ];
+
+    if (digitosBusqueda) {
+      condiciones.push({
+        'telefonos.numero': { $regex: escaparRegex(digitosBusqueda) },
+      });
+    }
+
+    if (Number.isFinite(numeroBusqueda) && numeroBusqueda > 0) {
+      condiciones.push({ dni: numeroBusqueda });
+      condiciones.push({ numeroAfiliado: numeroBusqueda });
+    }
+
+    if (credencial) {
+      condiciones.push({
+        numeroAfiliado: Number(credencial[1]),
+        numeroIntegrante: Number(credencial[2]),
+      });
+    }
+
+    const afiliados = await Afiliado.find({ $or: condiciones })
+      .sort({ apellido: 1, nombre: 1 })
+      .limit(20)
+      .select(
+        'nombre apellido dni numeroAfiliado numeroIntegrante telefonos plan fechaBaja parentesco afiliadoTitularId'
+      );
+
     respuesta.json(afiliados);
+  } catch (error) {
+    siguiente(error);
+  }
+});
+
+rutas.get('/situaciones-terapeuticas', async (_peticion, respuesta, siguiente) => {
+  try {
+    const situaciones = await SituacionTerapeutica.find().sort({ nombre: 1 });
+    respuesta.json(situaciones);
   } catch (error) {
     siguiente(error);
   }
