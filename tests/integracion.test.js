@@ -65,6 +65,7 @@ const contexto = {
   especialidadId: '',
   situacionTerapeuticaId: '',
   agendaHouseId: '',
+  solicitudFlujoId: '',
 };
 
 const DIAS_SEMANA = [
@@ -187,8 +188,31 @@ const iniciarSesion = async (identificador, contrasena, rol) => {
 
 const obtenerId = (valor) => String(valor?._id ?? valor?.id ?? valor ?? '');
 
+const cargarContextoSeed = async () => {
+  const [homero, house, situacionTerapeutica] = await Promise.all([
+    Afiliado.findOne({ dni: 10000001 }),
+    Prestador.findOne({ nombre: 'Dr. House' }),
+    SituacionTerapeutica.findOne(),
+  ]);
+
+  assert.ok(homero, 'La seed debe contener a Homero Simpson');
+  assert.ok(house, 'La seed debe contener a Dr. House');
+  assert.ok(house.especialidades?.length, 'Dr. House debe tener especialidad');
+  assert.ok(situacionTerapeutica, 'La seed debe contener situaciones terapéuticas');
+
+  const agendaHouse = await Agenda.findOne({ prestadorId: house._id });
+  assert.ok(agendaHouse, 'Dr. House debe tener al menos una agenda');
+
+  contexto.homeroId = obtenerId(homero);
+  contexto.houseId = obtenerId(house);
+  contexto.especialidadId = obtenerId(house.especialidades[0]);
+  contexto.situacionTerapeuticaId = obtenerId(situacionTerapeutica);
+  contexto.agendaHouseId = obtenerId(agendaHouse);
+};
+
 before(async () => {
   await ejecutarSeed({ clean: true });
+  await cargarContextoSeed();
 
   await new Promise((resolver, rechazar) => {
     servidor = aplicacion.listen(0, '127.0.0.1', resolver);
@@ -197,6 +221,14 @@ before(async () => {
 
   const direccion = servidor.address();
   urlBase = `http://127.0.0.1:${direccion.port}`;
+
+  tokens.administrador = await iniciarSesion(
+    'admin@medintegral.com',
+    'Admin1234',
+    'ADMIN'
+  );
+  tokens.afiliado = await iniciarSesion('10000001', 'Demo1234', 'AFILIADO');
+  tokens.prestador = await iniciarSesion('12345678', 'Demo1234', 'PRESTADOR');
 });
 
 after(async () => {
@@ -229,13 +261,18 @@ test('MedIntegral - integración completa de API y persistencia', async (t) => {
     });
     exigirEstado(respuesta, 401, 'Una contraseña incorrecta debe rechazarse');
 
-    tokens.administrador = await iniciarSesion(
+    const tokenAdministrador = await iniciarSesion(
       'admin@medintegral.com',
       'Admin1234',
       'ADMIN'
     );
-    tokens.afiliado = await iniciarSesion('10000001', 'Demo1234', 'AFILIADO');
-    tokens.prestador = await iniciarSesion('12345678', 'Demo1234', 'PRESTADOR');
+    assert.ok(tokenAdministrador);
+
+    const tokenAfiliado = await iniciarSesion('10000001', 'Demo1234', 'AFILIADO');
+    assert.ok(tokenAfiliado);
+
+    const tokenPrestador = await iniciarSesion('12345678', 'Demo1234', 'PRESTADOR');
+    assert.ok(tokenPrestador);
 
     respuesta = await solicitar('/prestadores', { token: tokens.afiliado });
     exigirEstado(respuesta, 403, 'AFILIADO no debe entrar a administración');
@@ -283,14 +320,20 @@ test('MedIntegral - integración completa de API y persistencia', async (t) => {
     assert.equal(respuesta.datos.length, 10);
     const homero = respuesta.datos.find((afiliado) => afiliado.dni === 10000001);
     assert.ok(homero, 'La seed debe contener a Homero');
-    contexto.homeroId = obtenerId(homero);
+    assert.equal(obtenerId(homero), contexto.homeroId);
 
     respuesta = await solicitar(`/afiliados/${contexto.homeroId}`, {
       token: tokens.administrador,
     });
     exigirEstado(respuesta, 200, 'GET /afiliados/:id');
     assert.equal(respuesta.datos?.familiares?.length, 3);
-    assert.equal(respuesta.datos?.familiares?.[0]?.afiliadoTitularId, undefined);
+    for (const familiar of respuesta.datos.familiares) {
+      assert.equal(
+        obtenerId(familiar.afiliadoTitularId),
+        contexto.homeroId,
+        'Cada integrante debe conservar la referencia a su titular'
+      );
+    }
 
     respuesta = await solicitar('/afiliados?apellido=Simpson', {
       token: tokens.administrador,
@@ -316,8 +359,7 @@ test('MedIntegral - integración completa de API y persistencia', async (t) => {
     assert.equal(respuesta.datos.length, 8);
     const house = respuesta.datos.find((prestador) => prestador.nombre === 'Dr. House');
     assert.ok(house, 'La seed debe contener a Dr. House');
-    contexto.houseId = obtenerId(house);
-    contexto.especialidadId = obtenerId(house.especialidades[0]);
+    assert.equal(obtenerId(house), contexto.houseId);
 
     respuesta = await solicitar(`/prestadores/${contexto.houseId}`, {
       token: tokens.administrador,
@@ -335,11 +377,10 @@ test('MedIntegral - integración completa de API y persistencia', async (t) => {
     respuesta = await solicitar('/agendas', { token: tokens.administrador });
     exigirEstado(respuesta, 200, 'GET /agendas');
     assert.equal(respuesta.datos.length, 7);
-    const agendaHouse = respuesta.datos.find(
-      (agenda) => obtenerId(agenda.prestadorId) === contexto.houseId
+    assert.ok(
+      respuesta.datos.some((agenda) => obtenerId(agenda) === contexto.agendaHouseId),
+      'La agenda de Dr. House debe aparecer en el listado'
     );
-    assert.ok(agendaHouse, 'Debe existir una agenda de Dr. House');
-    contexto.agendaHouseId = obtenerId(agendaHouse);
 
     respuesta = await solicitar(`/agendas/${contexto.agendaHouseId}`, {
       token: tokens.administrador,
@@ -357,7 +398,11 @@ test('MedIntegral - integración completa de API y persistencia', async (t) => {
     });
     exigirEstado(respuesta, 200, 'GET /situaciones-terapeuticas');
     assert.equal(respuesta.datos.length, 5);
-    contexto.situacionTerapeuticaId = obtenerId(respuesta.datos[0]);
+    assert.ok(
+      respuesta.datos.some(
+        (situacion) => obtenerId(situacion) === contexto.situacionTerapeuticaId
+      )
+    );
 
     const rutasReportes = [
       '/reportes/afiliados-altas',
@@ -702,7 +747,7 @@ test('MedIntegral - integración completa de API y persistencia', async (t) => {
     });
     exigirEstado(respuesta, 200, 'GET portal afiliado/mi-perfil');
     assert.equal(respuesta.datos.dni, 10000001);
-    contexto.homeroId = obtenerId(respuesta.datos);
+    assert.equal(obtenerId(respuesta.datos), contexto.homeroId);
 
     for (const ruta of [
       '/portal-afiliado/resumen',
@@ -841,6 +886,8 @@ test('MedIntegral - integración completa de API y persistencia', async (t) => {
   });
 
   await t.test('portal prestador: GET, estados, historia y situaciones persisten', async () => {
+    assert.ok(contexto.solicitudFlujoId, 'El flujo de afiliado debe crear una solicitud');
+
     for (const ruta of [
       '/portal-prestador/mi-perfil',
       '/portal-prestador/resumen',
