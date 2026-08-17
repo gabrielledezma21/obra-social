@@ -7,7 +7,7 @@
     "dev": "nodemon src/server.js",
     "start": "node src/server.js",
     "test": "npm run test:integracion",
-    "test:integracion": "node --test --test-concurrency=1 tests/integracion.test.js tests/integridad.test.js tests/seguridadLimpieza.test.js tests/rollback.test.js tests/observaciones.test.js",
+    "test:integracion": "node --test --test-concurrency=1 tests/integracion.test.js tests/integridad.test.js tests/seguridadLimpieza.test.js tests/rollback.test.js tests/observaciones.test.js tests/grupoFamiliar.test.js",
     "db": "node src/reiniciarDB.js",
     "crear-admin": "node src/crearAdministrador.js",
     "gendoc": "rm -f swagger-output.json && node swagger.js",
