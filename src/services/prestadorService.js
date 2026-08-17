@@ -32,6 +32,24 @@ const validarEspecialidades = async (identificadores = []) => {
   }
 };
 
+const validarEspecialidadesDeAgendas = async (
+  idPrestador,
+  especialidadesNuevas
+) => {
+  const agendaIncompatible = await Agenda.findOne({
+    prestadorId: idPrestador,
+    especialidadId: { $nin: especialidadesNuevas },
+  }).select('_id especialidadId');
+
+  if (agendaIncompatible) {
+    throw new ErrorAplicacion(
+      'No se puede quitar una especialidad que todavía está utilizada por una agenda',
+      409,
+      'ESPECIALIDAD_CON_AGENDA'
+    );
+  }
+};
+
 const validarCentroMedico = async (
   centroMedicoQueIntegra,
   { idPrestador = null, esCentroMedico = false } = {}
@@ -110,6 +128,7 @@ const actualizarPrestador = async (id, datos) => {
 
   if (datos.especialidades !== undefined) {
     await validarEspecialidades(datos.especialidades);
+    await validarEspecialidadesDeAgendas(id, datos.especialidades);
   }
 
   const cambios = { ...datos };
@@ -119,6 +138,18 @@ const actualizarPrestador = async (id, datos) => {
     cambios.esCentroMedico === undefined
       ? actual.esCentroMedico
       : Boolean(cambios.esCentroMedico);
+
+  if (
+    actual.esCentroMedico &&
+    !seraCentroMedico &&
+    (await Prestador.exists({ centroMedicoQueIntegra: id }))
+  ) {
+    throw new ErrorAplicacion(
+      'No se puede cambiar el tipo del centro médico mientras tenga prestadores asociados',
+      409,
+      'CENTRO_MEDICO_CON_PRESTADORES'
+    );
+  }
 
   if (seraCentroMedico) {
     cambios.centroMedicoQueIntegra = null;
