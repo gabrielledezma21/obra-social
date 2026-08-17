@@ -2,14 +2,33 @@ const criptografia = require('crypto');
 const ErrorAplicacion = require('../exceptions/appError');
 const Usuario = require('../models/usuario');
 
-const obtenerSecreto = () =>
-  process.env.SECRETO_AUTENTICACION || 'medintegral-desarrollo-cambiar-secreto';
+const SECRETO_DESARROLLO = 'medintegral-desarrollo-cambiar-secreto';
+
+const obtenerSecreto = () => {
+  const secretoConfigurado = String(
+    process.env.SECRETO_AUTENTICACION || ''
+  ).trim();
+
+  if (secretoConfigurado) return secretoConfigurado;
+
+  if (process.env.NODE_ENV === 'production') {
+    throw new ErrorAplicacion(
+      'SECRETO_AUTENTICACION es obligatorio en producción',
+      500,
+      'CONFIGURACION_AUTENTICACION_INVALIDA'
+    );
+  }
+
+  return SECRETO_DESARROLLO;
+};
 
 const firmarToken = (datosToken) => {
-  const cuerpo = Buffer.from(JSON.stringify({
-    ...datosToken,
-    venceEn: Date.now() + 1000 * 60 * 60 * 12,
-  })).toString('base64url');
+  const cuerpo = Buffer.from(
+    JSON.stringify({
+      ...datosToken,
+      venceEn: Date.now() + 1000 * 60 * 60 * 12,
+    })
+  ).toString('base64url');
   const firma = criptografia
     .createHmac('sha256', obtenerSecreto())
     .update(cuerpo)
@@ -104,4 +123,5 @@ module.exports = {
   requerirContrasenaActualizada,
   firmarToken,
   verificarToken,
+  obtenerSecreto,
 };
