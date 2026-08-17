@@ -16,6 +16,11 @@ const portalAfiliadoRutas = require('./routes/portalAfiliadoRutas');
 const portalPrestadorRutas = require('./routes/portalPrestadorRutas');
 const reporteRutas = require('./routes/reporteRutas');
 const { logRequest: registrarPeticion } = require('./middlewares/genericMiddleware');
+const {
+  autenticar,
+  requerirRol,
+  requerirContrasenaActualizada,
+} = require('./middlewares/autenticacionMiddleware');
 const { runSeed: ejecutarCargaInicial } = require('./reiniciarDB');
 
 const APLICACION = express();
@@ -54,6 +59,22 @@ const asegurarBaseDatos = async (_peticion, _respuesta, siguiente) => {
   }
 };
 
+const protegerAdministracion = [
+  autenticar,
+  requerirRol('ADMIN'),
+  requerirContrasenaActualizada,
+];
+const protegerPortalAfiliado = [
+  autenticar,
+  requerirRol('AFILIADO'),
+  requerirContrasenaActualizada,
+];
+const protegerPortalPrestador = [
+  autenticar,
+  requerirRol('PRESTADOR'),
+  requerirContrasenaActualizada,
+];
+
 const configurarAplicacion = (aplicacion) => {
   aplicacion.disable('x-powered-by');
   aplicacion.use(cors(opcionesCors));
@@ -81,16 +102,34 @@ const configurarAplicacion = (aplicacion) => {
 
   aplicacion.use(asegurarBaseDatos);
   aplicacion.use(registrarPeticion);
-  aplicacion.use('/prestadores', prestadorRutas);
-  aplicacion.use('/especialidades', especialidadRutas);
-  aplicacion.use('/agendas', agendaRutas);
-  aplicacion.use('/afiliados', afiliadoRutas);
-  aplicacion.use('/situaciones-terapeuticas', situacionTerapeuticaRutas);
-  aplicacion.use('/reportes', reporteRutas);
   aplicacion.use('/autenticacion', autenticacionRutas);
-  aplicacion.use('/portal-afiliado', disponibilidadTurnosRutas);
-  aplicacion.use('/portal-afiliado', portalAfiliadoRutas);
-  aplicacion.use('/portal-prestador', portalPrestadorRutas);
+
+  aplicacion.use('/prestadores', ...protegerAdministracion, prestadorRutas);
+  aplicacion.use('/especialidades', ...protegerAdministracion, especialidadRutas);
+  aplicacion.use('/agendas', ...protegerAdministracion, agendaRutas);
+  aplicacion.use('/afiliados', ...protegerAdministracion, afiliadoRutas);
+  aplicacion.use(
+    '/situaciones-terapeuticas',
+    ...protegerAdministracion,
+    situacionTerapeuticaRutas
+  );
+  aplicacion.use('/reportes', ...protegerAdministracion, reporteRutas);
+
+  aplicacion.use(
+    '/portal-afiliado',
+    ...protegerPortalAfiliado,
+    disponibilidadTurnosRutas
+  );
+  aplicacion.use(
+    '/portal-afiliado',
+    ...protegerPortalAfiliado,
+    portalAfiliadoRutas
+  );
+  aplicacion.use(
+    '/portal-prestador',
+    ...protegerPortalPrestador,
+    portalPrestadorRutas
+  );
 
   aplicacion.use((error, peticion, respuesta, _siguiente) => {
     let estado = error.statusCode || error.status || 500;
