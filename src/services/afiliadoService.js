@@ -190,6 +190,58 @@ const crearAfiliado = async (datos) => {
   }
 };
 
+const actualizarVigenciaGrupoFamiliar = async (afiliadoActual, datos) => {
+  if (afiliadoActual.parentesco !== 'Titular') {
+    throw new ErrorAplicacion(
+      'Solo el titular puede aplicar cambios de vigencia a todo el grupo familiar',
+      400,
+      'SOLO_TITULAR_PUEDE_MODIFICAR_GRUPO'
+    );
+  }
+
+  if (!Object.prototype.hasOwnProperty.call(datos, 'fechaBaja')) {
+    throw new ErrorAplicacion(
+      'La fecha de baja es obligatoria para modificar la vigencia del grupo',
+      400,
+      'FECHA_BAJA_REQUERIDA'
+    );
+  }
+
+  const camposPermitidos = new Set(['fechaBaja', 'aplicarAGrupoFamiliar']);
+  const camposInvalidos = Object.keys(datos).filter(
+    (campo) => !camposPermitidos.has(campo)
+  );
+  if (camposInvalidos.length) {
+    throw new ErrorAplicacion(
+      'La modificación grupal de vigencia no admite otros cambios simultáneos',
+      400,
+      'CAMBIOS_GRUPALES_INVALIDOS'
+    );
+  }
+
+  const fechaBaja = datos.fechaBaja ? new Date(datos.fechaBaja) : null;
+  if (fechaBaja && Number.isNaN(fechaBaja.getTime())) {
+    throw new ErrorAplicacion(
+      'La fecha de baja es inválida',
+      400,
+      'FECHA_BAJA_INVALIDA'
+    );
+  }
+
+  await Afiliado.updateMany(
+    {
+      $or: [
+        { _id: afiliadoActual._id },
+        { afiliadoTitularId: afiliadoActual._id },
+      ],
+    },
+    { $set: { fechaBaja } },
+    { runValidators: true }
+  );
+
+  return Afiliado.findById(afiliadoActual._id);
+};
+
 const actualizarAfiliado = async (id, datos) => {
   const afiliadoActual = await Afiliado.findById(id);
   if (!afiliadoActual) {
@@ -200,12 +252,17 @@ const actualizarAfiliado = async (id, datos) => {
     );
   }
 
+  if (datos.aplicarAGrupoFamiliar) {
+    return actualizarVigenciaGrupoFamiliar(afiliadoActual, datos);
+  }
+
   if (datos.situacionesTerapeuticas !== undefined) {
     await validarSituacionesTerapeuticas(datos.situacionesTerapeuticas);
   }
 
   const situacionesAnteriores = afiliadoActual.situacionesTerapeuticas.map(String);
   const cambios = { ...datos };
+  delete cambios.aplicarAGrupoFamiliar;
   delete cambios.direccion;
   delete cambios.direcciones;
   delete cambios.numeroAfiliado;
