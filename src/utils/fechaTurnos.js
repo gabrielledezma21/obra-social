@@ -87,6 +87,14 @@ const crearFechaHoraArgentina = (valorFecha, hora) => {
   return Number.isNaN(fechaHora.getTime()) ? null : fechaHora;
 };
 
+const esTurnoProximo = (turno, ahora = new Date()) => {
+  if (turno?.estado !== 'RESERVADO') return false;
+
+  const fechaTexto = formatearFechaPersistida(turno.fecha);
+  const fechaHoraTurno = crearFechaHoraArgentina(fechaTexto, turno.hora);
+  return Boolean(fechaHoraTurno && fechaHoraTurno.getTime() >= ahora.getTime());
+};
+
 const obtenerRangoDiaUtc = (valorFecha) => {
   const partes = obtenerPartesFecha(valorFecha);
   if (!partes) return null;
@@ -103,6 +111,7 @@ module.exports = {
   crearFechaHoraArgentina,
   crearFechaPersistencia,
   esFechaValida,
+  esTurnoProximo,
   formatearFechaPersistida,
   obtenerClaveDia,
   obtenerFechaActualArgentina,
