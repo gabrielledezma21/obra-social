@@ -1,51 +1,151 @@
-const { Prestador, Agenda } = require("../models");
-const centroDeAtencionService = require("./centroDeAtencionService");
-const AppError = require("../exceptions/appError");
+const { Prestador, Agenda, Especialidad } = require('../models');
+const servicioCentroDeAtencion = require('./centroDeAtencionService');
+const ErrorAplicacion = require('../exceptions/appError');
 
-const createPrestador = async (data) => {
+const validarEspecialidades = async (identificadores = []) => {
+  if (!Array.isArray(identificadores) || identificadores.length === 0) {
+    throw new ErrorAplicacion(
+      'El prestador debe tener al menos una especialidad válida',
+      400,
+      'ESPECIALIDAD_REQUERIDA'
+    );
+  }
+
+  const idsUnicos = [...new Set(identificadores.map(String))];
+  const cantidadExistente = await Especialidad.countDocuments({
+    _id: { $in: idsUnicos },
+  });
+
+  if (cantidadExistente !== idsUnicos.length) {
+    throw new ErrorAplicacion(
+      'Una o más especialidades informadas no existen',
+      400,
+      'ESPECIALIDAD_INVALIDA'
+    );
+  }
+};
+
+const validarCentroMedico = async (
+  centroMedicoQueIntegra,
+  { idPrestador = null, esCentroMedico = false } = {}
+) => {
+  if (esCentroMedico || !centroMedicoQueIntegra) return;
+
+  if (
+    idPrestador &&
+    String(centroMedicoQueIntegra) === String(idPrestador)
+  ) {
+    throw new ErrorAplicacion(
+      'Un prestador no puede integrarse a sí mismo',
+      400,
+      'CENTRO_MEDICO_INVALIDO'
+    );
+  }
+
+  const centro = await Prestador.findOne({
+    _id: centroMedicoQueIntegra,
+    esCentroMedico: true,
+  });
+
+  if (!centro) {
+    throw new ErrorAplicacion(
+      'El centro médico seleccionado no existe o no es un centro médico',
+      400,
+      'CENTRO_MEDICO_INVALIDO'
+    );
+  }
+};
+
+const crearPrestador = async (datos) => {
+  await validarEspecialidades(datos.especialidades || []);
+  await validarCentroMedico(datos.centroMedicoQueIntegra, {
+    esCentroMedico: Boolean(datos.esCentroMedico),
+  });
+
   const centrosDeAtencion = await Promise.all(
-    (data.centrosDeAtencion || []).map((centro) => centroDeAtencionService.createCentroDeAtencion(centro))
+    (datos.centrosDeAtencion || []).map((centro) =>
+      servicioCentroDeAtencion.createCentroDeAtencion(centro)
+    )
   );
+
   try {
     return await Prestador.create({
-      nombre: data.nombre, cuilCuit: data.cuilCuit, emails: data.emails || [],
-      telefonos: data.telefonos || [], especialidades: data.especialidades || [],
-      centrosDeAtencion: centrosDeAtencion.map((c) => c._id),
-      esCentroMedico: data.esCentroMedico, centroMedicoQueIntegra: data.centroMedicoQueIntegra || null
+      nombre: datos.nombre,
+      cuilCuit: datos.cuilCuit,
+      emails: datos.emails || [],
+      telefonos: datos.telefonos || [],
+      especialidades: datos.especialidades || [],
+      centrosDeAtencion: centrosDeAtencion.map((centro) => centro._id),
+      esCentroMedico: Boolean(datos.esCentroMedico),
+      centroMedicoQueIntegra: datos.esCentroMedico
+        ? null
+        : datos.centroMedicoQueIntegra || null,
     });
   } catch (error) {
-    await centroDeAtencionService.deleteCentrosDeAtencion(centrosDeAtencion.map((c) => c._id)).catch(() => {});
+    await servicioCentroDeAtencion
+      .deleteCentrosDeAtencion(centrosDeAtencion.map((centro) => centro._id))
+      .catch(() => {});
     throw error;
   }
 };
 
-const updatePrestador = async (id, data) => {
-  const current = await Prestador.findById(id);
-  if (!current) throw new AppError('Prestador no encontrado', 404, 'PRESTADOR_NO_ENCONTRADO');
-
-  const update = { ...data };
-  delete update.centrosDeAtencion;
-
-  if (update.esCentroMedico) update.centroMedicoQueIntegra = null;
-  if (update.centroMedicoQueIntegra) {
-    if (String(update.centroMedicoQueIntegra) === String(id)) {
-      throw new AppError('Un prestador no puede integrarse a sí mismo', 400, 'CENTRO_MEDICO_INVALIDO');
-    }
-    const centro = await Prestador.findOne({ _id: update.centroMedicoQueIntegra, esCentroMedico: true });
-    if (!centro) throw new AppError('El centro médico seleccionado no existe o no es un centro médico', 400, 'CENTRO_MEDICO_INVALIDO');
+const actualizarPrestador = async (id, datos) => {
+  const actual = await Prestador.findById(id);
+  if (!actual) {
+    throw new ErrorAplicacion(
+      'Prestador no encontrado',
+      404,
+      'PRESTADOR_NO_ENCONTRADO'
+    );
   }
 
-  return Prestador.findByIdAndUpdate(id, update, { new: true, runValidators: true });
+  if (datos.especialidades !== undefined) {
+    await validarEspecialidades(datos.especialidades);
+  }
+
+  const cambios = { ...datos };
+  delete cambios.centrosDeAtencion;
+
+  const seraCentroMedico =
+    cambios.esCentroMedico === undefined
+      ? actual.esCentroMedico
+      : Boolean(cambios.esCentroMedico);
+
+  if (seraCentroMedico) {
+    cambios.centroMedicoQueIntegra = null;
+  } else if (cambios.centroMedicoQueIntegra !== undefined) {
+    await validarCentroMedico(cambios.centroMedicoQueIntegra, {
+      idPrestador: id,
+      esCentroMedico: false,
+    });
+  }
+
+  return Prestador.findByIdAndUpdate(id, cambios, {
+    new: true,
+    runValidators: true,
+  });
 };
 
-const deletePrestador = async (id) => {
+const eliminarPrestador = async (id) => {
   if (await Agenda.exists({ prestadorId: id })) {
-    throw new AppError('No se puede eliminar un prestador que tiene agendas activas', 409, 'PRESTADOR_CON_AGENDAS');
+    throw new ErrorAplicacion(
+      'No se puede eliminar un prestador que tiene agendas activas',
+      409,
+      'PRESTADOR_CON_AGENDAS'
+    );
   }
   if (await Prestador.exists({ centroMedicoQueIntegra: id })) {
-    throw new AppError('No se puede eliminar un centro médico que todavía tiene prestadores asociados', 409, 'CENTRO_MEDICO_CON_PRESTADORES');
+    throw new ErrorAplicacion(
+      'No se puede eliminar un centro médico que todavía tiene prestadores asociados',
+      409,
+      'CENTRO_MEDICO_CON_PRESTADORES'
+    );
   }
   return Prestador.findByIdAndDelete(id);
 };
 
-module.exports = { createPrestador, updatePrestador, deletePrestador };
+module.exports = {
+  createPrestador: crearPrestador,
+  updatePrestador: actualizarPrestador,
+  deletePrestador: eliminarPrestador,
+};
