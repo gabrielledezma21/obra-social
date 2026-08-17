@@ -87,4 +87,21 @@ const requerirRol = (...rolesPermitidos) => (peticion, _respuesta, siguiente) =>
         )
       );
 
-module.exports = { autenticar, requerirRol, firmarToken, verificarToken };
+const requerirContrasenaActualizada = (peticion, _respuesta, siguiente) =>
+  peticion.usuario?.debeCambiarContrasena
+    ? siguiente(
+        new ErrorAplicacion(
+          'Debés cambiar tu contraseña antes de continuar',
+          403,
+          'CAMBIO_CONTRASENA_REQUERIDO'
+        )
+      )
+    : siguiente();
+
+module.exports = {
+  autenticar,
+  requerirRol,
+  requerirContrasenaActualizada,
+  firmarToken,
+  verificarToken,
+};
