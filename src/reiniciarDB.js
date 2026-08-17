@@ -9,6 +9,7 @@ const {
   Afiliado,
   SituacionTerapeutica,
 } = require('./models');
+const Contador = require('./models/contador');
 const Usuario = require('./models/usuario');
 const Solicitud = require('./models/solicitud');
 const Turno = require('./models/turno');
@@ -27,6 +28,44 @@ const sumarDias = (cantidad) => {
   const fecha = new Date();
   fecha.setHours(12, 0, 0, 0);
   fecha.setDate(fecha.getDate() + cantidad);
+  return fecha;
+};
+
+const INDICES_DIAS = {
+  Domingo: 0,
+  Lunes: 1,
+  Martes: 2,
+  Miercoles: 3,
+  Jueves: 4,
+  Viernes: 5,
+  Sabado: 6,
+};
+
+const obtenerFechaParaDia = (
+  diaObjetivo,
+  { semanas = 0, pasado = false } = {}
+) => {
+  const indiceObjetivo = INDICES_DIAS[diaObjetivo];
+  if (indiceObjetivo === undefined) {
+    throw new Error(`Día inválido para la seed: ${diaObjetivo}`);
+  }
+
+  const fecha = new Date();
+  fecha.setHours(12, 0, 0, 0);
+  const indiceActual = fecha.getDay();
+
+  if (pasado) {
+    let diferencia = (indiceActual - indiceObjetivo + 7) % 7;
+    if (diferencia === 0) diferencia = 7;
+    diferencia += semanas * 7;
+    fecha.setDate(fecha.getDate() - diferencia);
+  } else {
+    let diferencia = (indiceObjetivo - indiceActual + 7) % 7;
+    if (diferencia === 0) diferencia = 7;
+    diferencia += semanas * 7;
+    fecha.setDate(fecha.getDate() + diferencia);
+  }
+
   return fecha;
 };
 
@@ -84,6 +123,7 @@ const limpiarBaseDeDatos = async () => {
     CentroDeAtencion.deleteMany({}),
     Agenda.deleteMany({}),
     SituacionTerapeutica.deleteMany({}),
+    Contador.deleteMany({}),
   ]);
   console.log('✅ Base de datos limpiada');
 };
@@ -695,7 +735,7 @@ const ejecutarSeed = async ({ limpiar = true } = {}) => {
         prestadorId: prestadores[0]._id,
         afiliadoId: homero._id,
         reservadoPorAfiliadoId: homero._id,
-        fecha: sumarDias(3),
+        fecha: obtenerFechaParaDia('Miercoles'),
         hora: '09:00',
         estado: 'RESERVADO',
       },
@@ -704,7 +744,7 @@ const ejecutarSeed = async ({ limpiar = true } = {}) => {
         prestadorId: prestadores[0]._id,
         afiliadoId: familiaresSimpson[0]._id,
         reservadoPorAfiliadoId: homero._id,
-        fecha: sumarDias(10),
+        fecha: obtenerFechaParaDia('Lunes', { semanas: 1 }),
         hora: '10:00',
         estado: 'RESERVADO',
       },
@@ -713,7 +753,7 @@ const ejecutarSeed = async ({ limpiar = true } = {}) => {
         prestadorId: prestadores[1]._id,
         afiliadoId: lucia._id,
         reservadoPorAfiliadoId: lucia._id,
-        fecha: sumarDias(5),
+        fecha: obtenerFechaParaDia('Jueves'),
         hora: '11:00',
         estado: 'RESERVADO',
       },
@@ -722,7 +762,7 @@ const ejecutarSeed = async ({ limpiar = true } = {}) => {
         prestadorId: prestadores[0]._id,
         afiliadoId: homero._id,
         reservadoPorAfiliadoId: homero._id,
-        fecha: sumarDias(-14),
+        fecha: obtenerFechaParaDia('Miercoles', { semanas: 1, pasado: true }),
         hora: '11:30',
         estado: 'ATENDIDO',
       },
@@ -731,7 +771,7 @@ const ejecutarSeed = async ({ limpiar = true } = {}) => {
         prestadorId: prestadores[0]._id,
         afiliadoId: homero._id,
         reservadoPorAfiliadoId: homero._id,
-        fecha: sumarDias(-45),
+        fecha: obtenerFechaParaDia('Lunes', { semanas: 5, pasado: true }),
         hora: '12:00',
         estado: 'ATENDIDO',
       },
@@ -740,7 +780,7 @@ const ejecutarSeed = async ({ limpiar = true } = {}) => {
         prestadorId: prestadores[2]._id,
         afiliadoId: sofia._id,
         reservadoPorAfiliadoId: sofia._id,
-        fecha: sumarDias(8),
+        fecha: obtenerFechaParaDia('Jueves', { semanas: 1 }),
         hora: '15:00',
         estado: 'CANCELADO',
       },
@@ -757,7 +797,7 @@ const ejecutarSeed = async ({ limpiar = true } = {}) => {
         turnoId: turnos[3]._id,
         nota:
           'Control cardiológico. Presión arterial estable. Mantener medicación y actividad física moderada.',
-        fecha: sumarDias(-14),
+        fecha: obtenerFechaParaDia('Miercoles', { semanas: 1, pasado: true }),
       },
       {
         afiliadoId: homero._id,
@@ -765,7 +805,7 @@ const ejecutarSeed = async ({ limpiar = true } = {}) => {
         turnoId: turnos[4]._id,
         nota:
           'Consulta por hipertensión. Se indicó control domiciliario de presión durante dos semanas.',
-        fecha: sumarDias(-45),
+        fecha: obtenerFechaParaDia('Lunes', { semanas: 5, pasado: true }),
       },
       {
         afiliadoId: lucia._id,
