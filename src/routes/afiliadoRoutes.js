@@ -1,50 +1,74 @@
-const { Router } = require("express");
-const router = Router();
-const { afiliadoController } = require("../controllers");
-const { genericMiddleware, afiliadoMiddleware } = require("../middlewares");
-const { Afiliado, Direccion } = require("../models");
+const { Router } = require('express');
+const { afiliadoController: controladorAfiliado } = require('../controllers');
+const {
+  genericMiddleware: intermediarioGenerico,
+  afiliadoMiddleware: intermediarioAfiliado,
+} = require('../middlewares');
+const { Afiliado, Direccion } = require('../models');
 
-router.get('/',
-  /* 
+const rutas = Router();
+const existeAlgunoPorModelo = intermediarioGenerico.existsAnyByModel;
+const existeModeloPorId = intermediarioGenerico.existsModelById;
+const noExisteAfiliado = intermediarioAfiliado.notExistsAfiliado;
+
+rutas.get(
+  '/',
+  /*
     #swagger.tags = ['Afiliados']
     #swagger.path = '/afiliados'
   */
-  genericMiddleware.existsAnyByModel(Afiliado),
-  afiliadoController.getAfiliados
+  existeAlgunoPorModelo(Afiliado),
+  controladorAfiliado.obtenerAfiliados
 );
 
-router.get('/provincias', async (req, res, next) => {
+rutas.get('/provincias', async (_peticion, respuesta, siguiente) => {
   try {
     const provincias = await Direccion.distinct('provincia');
-    res.status(200).json(provincias.filter(Boolean).sort().map((nombre) => ({ id: nombre, nombre })));
+    respuesta
+      .status(200)
+      .json(
+        provincias
+          .filter(Boolean)
+          .sort()
+          .map((nombre) => ({ id: nombre, nombre }))
+      );
   } catch (error) {
-    next(error);
+    siguiente(error);
   }
 });
 
-router.get('/localidades', async (req, res, next) => {
+rutas.get('/localidades', async (_peticion, respuesta, siguiente) => {
   try {
     const localidades = await Direccion.distinct('localidad');
-    res.status(200).json(localidades.filter(Boolean).sort().map((nombre) => ({ id: nombre, nombre })));
+    respuesta
+      .status(200)
+      .json(
+        localidades
+          .filter(Boolean)
+          .sort()
+          .map((nombre) => ({ id: nombre, nombre }))
+      );
   } catch (error) {
-    next(error);
+    siguiente(error);
   }
 });
 
-router.get('/:id',
-  /* 
+rutas.get(
+  '/:id',
+  /*
     #swagger.tags = ['Afiliados']
     #swagger.path = '/afiliados/{id}'
     #swagger.description = 'Obtener un afiliado por su ID'
     #swagger.responses[200] = { description: 'Afiliado encontrado' }
     #swagger.responses[404] = { description: 'Afiliado no encontrado' }
   */
-  genericMiddleware.existsModelById(Afiliado),
-  afiliadoController.getAfiliadoById
+  existeModeloPorId(Afiliado),
+  controladorAfiliado.obtenerAfiliadoPorId
 );
 
-router.post('/',
-  /* 
+rutas.post(
+  '/',
+  /*
     #swagger.tags = ['Afiliados']
     #swagger.path = '/afiliados'
     #swagger.parameters['body'] = {
@@ -54,22 +78,23 @@ router.post('/',
         schema: { $ref: "#/definitions/AfiliadoInput" }
     }
   */
-  afiliadoMiddleware.notExistsAfiliado,
-  // genericMiddleware.validarCamposExactos(Afiliado),
-  afiliadoController.createAfiliado
+  noExisteAfiliado,
+  controladorAfiliado.crearAfiliado
 );
 
-router.delete('/:id',
-  /* 
+rutas.delete(
+  '/:id',
+  /*
     #swagger.tags = ['Afiliados']
     #swagger.path = '/afiliados/{id}'
   */
-  genericMiddleware.existsModelById(Afiliado),
-  afiliadoController.deleteAfiliado
+  existeModeloPorId(Afiliado),
+  controladorAfiliado.eliminarAfiliado
 );
 
-router.put('/:id',
-  /* 
+rutas.put(
+  '/:id',
+  /*
     #swagger.tags = ['Afiliados']
     #swagger.path = '/afiliados/{id}'
     #swagger.parameters['body'] = {
@@ -79,9 +104,8 @@ router.put('/:id',
         schema: { $ref: "#/definitions/AfiliadoUpdateInput" }
     }
   */
-  genericMiddleware.existsModelById(Afiliado),
-  // genericMiddleware.validarCamposExactos(Afiliado),
-  afiliadoController.updateAfiliado
+  existeModeloPorId(Afiliado),
+  controladorAfiliado.actualizarAfiliado
 );
 
-module.exports = router;
+module.exports = rutas;
