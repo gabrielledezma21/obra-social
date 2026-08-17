@@ -6,94 +6,89 @@
 
 ---
 
-## 🚀 Key Features
+## 🚀 Funcionalidades principales
 
-- **Gestión de Afiliados Inteligente**:
-    - Generación automática de números de socio (Titulares vs Familiares).
-    - Gestión de grupos familiares jerárquicos.
-    - Validación estricta de Planes (`210`, `310`, etc.).
-- **Prestadores y Centros Médicos**:
-    - Vinculación de profesionales con Centros Médicos (relación `centroMedicoQueIntegra`).
-    - Soporte completo para múltiples direcciones y esquemas de horarios complejos.
-- **Agendas y Turnos**:
-    - Validación robusta de superposición de horarios.
-    - Chequeo de especialidades por centro de atención.
+- **Gestión de afiliados**:
+  - Generación automática de números de afiliado.
+  - Gestión de titulares y grupos familiares.
+  - Planes y vigencias.
+  - Situaciones terapéuticas.
+- **Prestadores y centros médicos**:
+  - Especialidades.
+  - Centros de atención, direcciones y horarios.
+  - Vinculación de profesionales con centros médicos.
+- **Agendas y turnos**:
+  - Validación de horarios.
+  - Prevención de agendas duplicadas.
+  - Disponibilidad, reserva y cancelación.
 - **Portales por rol**:
-    - Administración para gestionar afiliados, prestadores, agendas y reportes.
-    - Afiliados con cartilla médica, turnos y solicitudes.
-    - Prestadores con turnos, solicitudes, pacientes e historia clínica.
-- **Autenticación por rol**:
-    - Roles `ADMIN`, `AFILIADO` y `PRESTADOR`.
-    - Activación de afiliados y prestadores mediante DNI + email previamente cargados en administración.
-- **Documentación Viva**: Swagger UI integrado y autogenerado.
-
----
-
-## 📑 Tabla de Contenidos
-
-1. [Tecnologías](#-tecnologías)
-2. [Prerrequisitos](#-prerrequisitos)
-3. [Instalación y Configuración](#-instalación-y-configuración)
-4. [Base de Datos y Seed](#-base-de-datos-y-seed)
-5. [Documentación API (Swagger)](#-documentación-api)
-6. [Testing](#-testing)
+  - Administración.
+  - Afiliados.
+  - Prestadores.
+- **Solicitudes**:
+  - Recetas, reintegros y autorizaciones.
+  - Estados `Recibido`, `En análisis`, `Observado`, `Aprobado` y `Rechazado`.
+- **Historia clínica**:
+  - Notas por atención.
+  - Situaciones terapéuticas activas y finalizadas.
+- **Autenticación y permisos**:
+  - Roles `ADMIN`, `AFILIADO` y `PRESTADOR`.
+  - Activación mediante DNI + email.
+  - Cambio obligatorio de contraseña en el primer ingreso.
+- **Reportes administrativos**.
+- **Swagger UI** para documentación de API.
 
 ---
 
 ## 🛠 Tecnologías
 
-El proyecto está construido sobre un stack robusto y escalable:
-
-- **Runtime:** Node.js
-- **Framework:** Express
-- **Base de Datos:** MongoDB (Persistencia), Redis (Caché)
-- **ORM:** Mongoose
-- **Documentación:** Swagger (swagger-autogen)
-- **Testing:** Scripts de integración nativos
+- Node.js 20+
+- Express
+- MongoDB + Mongoose
+- Redis opcional para caché
+- Swagger
+- `node:test` para pruebas automatizadas
+- GitHub Actions para integración continua
 
 ---
 
 ## 📋 Prerrequisitos
 
 - Node.js 20 o superior.
-- MongoDB corriendo localmente o una base MongoDB Atlas.
-- Redis opcional para optimización.
+- MongoDB local o MongoDB Atlas.
+- Redis es opcional.
 
 ---
 
-## ⚙ Instalación y Configuración
+## ⚙ Instalación y configuración
 
-1. **Clonar el repositorio**
-    ```bash
-    git clone https://github.com/gabrielledezma21/obra-social.git
-    cd obra-social
-    ```
+```bash
+git clone https://github.com/gabrielledezma21/obra-social.git
+cd obra-social
+npm install
+```
 
-2. **Instalar dependencias**
-    ```bash
-    npm install
-    ```
+Copiá `.env.example` como `.env` y configurá el entorno:
 
-3. **Configurar Variables de Entorno**
-    Copia `.env.example` como `.env` y completa la conexión a MongoDB:
-    ```env
-    PORT=3002
-    MONGO_URI=mongodb://admin:admin123@localhost:27017/obraSocial?authSource=admin
-    REDIS_URL=redis://localhost:6379
-    SECRETO_AUTENTICACION=definir-en-el-entorno
-    CORS_ORIGIN=http://localhost:5173
-    ```
+```env
+PORT=3002
+MONGO_URI=mongodb://127.0.0.1:27017/medintegral
+REDIS_URL=redis://127.0.0.1:6379
+SECRETO_AUTENTICACION=definir-en-el-entorno
+CORS_ORIGIN=http://localhost:5173
+```
 
-    `REDIS_URL` es opcional. Si no se configura, la API funciona sin caché.
+`REDIS_URL` es opcional. Si no está definida, la API sigue funcionando sin caché.
 
-4. **Iniciar Servidor**
-    ```bash
-    npm run dev
-    ```
+Para iniciar el servidor:
+
+```bash
+npm run dev
+```
 
 ---
 
-## 💾 Base de Datos y Seed
+## 💾 Base de datos y seed
 
 El proyecto incluye una seed completa para levantar un entorno demostrativo interconectado.
 
@@ -107,13 +102,13 @@ La seed genera:
 
 - 6 especialidades médicas.
 - 5 situaciones terapéuticas.
-- 5 centros de atención con direcciones y horarios.
+- 5 centros de atención.
 - 8 prestadores, incluyendo 2 centros médicos.
-- 7 agendas; algunos prestadores quedan deliberadamente sin agenda para alimentar los recordatorios administrativos.
-- 10 afiliados organizados en 4 grupos familiares y distintos planes.
-- Solicitudes de receta, reintegro y autorización en los estados `Recibido`, `En análisis`, `Observado`, `Aprobado` y `Rechazado`.
-- Turnos `RESERVADO`, `ATENDIDO` y `CANCELADO`.
-- Notas de historia clínica y situaciones terapéuticas activas/finalizadas.
+- 7 agendas.
+- 10 afiliados organizados en 4 grupos familiares.
+- Solicitudes en todos los estados principales.
+- Turnos reservados, atendidos y cancelados.
+- Historia clínica y situaciones terapéuticas.
 - Cuentas demo para los tres roles.
 
 ### Cuentas demo
@@ -126,60 +121,98 @@ La seed genera:
 
 ### Ejemplos para probar activación
 
-Estas personas existen administrativamente pero no tienen una cuenta creada por la seed:
-
 - **Afiliado:** Lucía Fernández — DNI `20000001` — `lucia@demo.com`.
 - **Prestador:** Dra. Meredith Grey — DNI `23456789` — `grey@medical.com`.
 
-Al activarlas, el sistema utiliza el DNI como contraseña temporal y obliga a cambiarla en el primer ingreso.
+Al activar una cuenta, el DNI se utiliza como contraseña temporal y debe cambiarse antes de acceder al portal.
+
+---
+
+## 🧪 Pruebas automatizadas
+
+La suite utiliza una base MongoDB **exclusiva de pruebas** y nunca debe apuntar a desarrollo o producción.
+
+Definí en `.env` o en la terminal:
+
+```env
+MONGO_URI_TEST=mongodb://127.0.0.1:27017/medintegral_test
+SECRETO_AUTENTICACION_TEST=secreto-solo-para-pruebas
+```
+
+Por seguridad, el nombre de la base configurada en `MONGO_URI_TEST` debe contener `test` o `prueba`. Si no se cumple, la suite se detiene antes de modificar MongoDB.
+
+Ejecutar todo:
+
+```bash
+npm test
+```
+
+La suite actual comprueba:
+
+- salud de la API;
+- login correcto e incorrecto;
+- permisos de `ADMIN`, `AFILIADO` y `PRESTADOR`;
+- activación y cambio obligatorio de contraseña;
+- todos los GET administrativos principales;
+- reportes;
+- creación, consulta, edición y eliminación de afiliados;
+- persistencia de integrantes del grupo familiar;
+- creación, consulta y edición de prestadores;
+- creación, consulta y edición de agendas;
+- disponibilidad, reserva, doble reserva y cancelación de turnos;
+- creación, edición y flujo de estados de solicitudes;
+- historia clínica;
+- situaciones terapéuticas;
+- integridad referencial final;
+- consistencia de la seed;
+- listados vacíos con respuesta `200 []`;
+- protección contra borrado de afiliados, prestadores y agendas con historial;
+- limpieza de centros, direcciones y horarios sin referencias;
+- preservación de centros compartidos;
+- validación de referencias inexistentes;
+- ocultamiento de contraseñas y tokens en los logs.
+
+### Integración continua
+
+`.github/workflows/pruebas-backend.yml` levanta MongoDB 7 de forma aislada en GitHub Actions y ejecuta automáticamente:
+
+```bash
+npm ci
+npm test
+```
+
+La base utilizada por CI es `medintegral_test` y se destruye al finalizar el job.
 
 ---
 
 ## 📚 Documentación API
 
-La API cuenta con documentación interactiva generada automáticamente con Swagger.
-
-1. **Generar/Actualizar Documentación**:
-    ```bash
-    npm run gendoc
-    ```
-    *Ejecutar siempre después de modificar rutas o definiciones.*
-
-2. **Acceder a la UI**:
-    Con el servidor corriendo, visita:
-    👉 **http://localhost:3002/doc**
-
----
-
-## 🧪 Testing
-
-El proyecto cuenta con tests de integración para comprobar el flujo del negocio.
-
-Para correr la verificación existente:
+Generar o actualizar Swagger:
 
 ```bash
-node test_integration_full.js
+npm run gendoc
 ```
 
-**Alcance del Test:**
-- Reseteo completo de DB.
-- Verificación de creación de Entidades (CRUD).
-- Validación de **Campos Virtuales** (ej. ver agendas dentro de un prestador).
-- Comprobación de integridad referencial.
+Con el servidor iniciado, la documentación está disponible en:
+
+```text
+http://localhost:3002/doc
+```
 
 ---
 
 ## ☁️ Despliegue en Vercel
 
-El proyecto incluye una entrada serverless en `api/index.js` y conserva `src/server.js` para el desarrollo local.
+El proyecto incluye una entrada serverless en `api/index.js` y conserva `src/server.js` para desarrollo local.
 
-1. Importa este repositorio en Vercel.
-2. Configura `MONGO_URI` o instala MongoDB Atlas para recibir `MONGODB_URI` automáticamente en Development, Preview y Production.
-3. Opcionalmente configura `REDIS_URL` para habilitar la caché.
-4. Configura `CORS_ORIGIN` con los orígenes permitidos separados por comas.
-5. Despliega y comprueba `/health` y `/doc`.
+1. Importá el repositorio en Vercel.
+2. Configurá `MONGO_URI` o `MONGODB_URI`.
+3. Opcionalmente configurá `REDIS_URL`.
+4. Configurá `SECRETO_AUTENTICACION`.
+5. Configurá `CORS_ORIGIN` con los orígenes permitidos separados por comas.
+6. Comprobá `/health` y `/doc` luego del despliegue.
 
-La carga de datos de demostración se ejecuta manualmente con `npm run db` sobre la base seleccionada. No se ejecuta durante el build ni al iniciar cada Function.
+La seed nunca se ejecuta automáticamente durante el build de producción salvo que se configure explícitamente ese comportamiento.
 
 ---
 
