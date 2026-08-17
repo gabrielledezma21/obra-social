@@ -1,3 +1,4 @@
+require('dotenv').config();
 const mongoose = require('mongoose');
 
 const uriPruebas = process.env.MONGO_URI_TEST;
