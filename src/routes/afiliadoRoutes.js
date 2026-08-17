@@ -7,7 +7,6 @@ const {
 const { Afiliado, Direccion } = require('../models');
 
 const rutas = Router();
-const existeAlgunoPorModelo = intermediarioGenerico.existsAnyByModel;
 const existeModeloPorId = intermediarioGenerico.existsModelById;
 const noExisteAfiliado = intermediarioAfiliado.notExistsAfiliado;
 
@@ -17,7 +16,6 @@ rutas.get(
     #swagger.tags = ['Afiliados']
     #swagger.path = '/afiliados'
   */
-  existeAlgunoPorModelo(Afiliado),
   controladorAfiliado.obtenerAfiliados
 );
 
