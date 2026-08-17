@@ -50,7 +50,7 @@ const asegurarBaseDatos = async (_peticion, _respuesta, siguiente) => {
   try {
     await mongo.conectarDB();
     if (process.env.SEED_DEMO_DATA === 'true') {
-      promesaCargaDemostracion ??= ejecutarCargaInicial({ clean: false });
+      promesaCargaDemostracion ??= ejecutarCargaInicial({ limpiar: false });
       await promesaCargaDemostracion;
     }
     siguiente();
