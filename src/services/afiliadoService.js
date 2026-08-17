@@ -1,9 +1,11 @@
-const { Afiliado, Direccion, SituacionTerapeutica } = require('../models');
-const Contador = require('../models/contador');
 const {
-  createDireccion: crearDireccion,
-  updateDireccion: actualizarDireccion,
-} = require('./direccionService');
+  Afiliado,
+  Direccion,
+  CentroDeAtencion,
+  SituacionTerapeutica,
+} = require('../models');
+const Contador = require('../models/contador');
+const { createDireccion: crearDireccion } = require('./direccionService');
 const ErrorAplicacion = require('../exceptions/appError');
 
 const validarSituacionesTerapeuticas = async (identificadores = []) => {
@@ -22,6 +24,38 @@ const validarSituacionesTerapeuticas = async (identificadores = []) => {
     );
   }
 };
+
+const eliminarDireccionesSinReferencias = async (identificadores = []) => {
+  const idsUnicos = [...new Set(identificadores.filter(Boolean).map(String))];
+  const idsEliminables = [];
+
+  for (const idDireccion of idsUnicos) {
+    const [referenciadaPorAfiliado, referenciadaPorCentro] = await Promise.all([
+      Afiliado.exists({
+        $or: [{ direccionId: idDireccion }, { direccionesIds: idDireccion }],
+      }),
+      CentroDeAtencion.exists({ direccionId: idDireccion }),
+    ]);
+
+    if (!referenciadaPorAfiliado && !referenciadaPorCentro) {
+      idsEliminables.push(idDireccion);
+    }
+  }
+
+  if (idsEliminables.length) {
+    await Direccion.deleteMany({ _id: { $in: idsEliminables } });
+  }
+};
+
+const obtenerDatosDireccion = (direccion, cambios = {}) => ({
+  calle: cambios.calle ?? direccion.calle,
+  altura: cambios.altura ?? direccion.altura,
+  pisoDepto:
+    cambios.pisoDepto !== undefined ? cambios.pisoDepto : direccion.pisoDepto,
+  localidad: cambios.localidad ?? direccion.localidad,
+  codigoPostal: cambios.codigoPostal ?? direccion.codigoPostal,
+  provincia: cambios.provincia ?? direccion.provincia,
+});
 
 const obtenerSiguienteNumeroAfiliado = async () => {
   let contador = await Contador.findById('numeroAfiliado');
@@ -148,9 +182,9 @@ const crearAfiliado = async (datos) => {
     return afiliado;
   } catch (error) {
     if (direccionesCreadas.length) {
-      await Direccion.deleteMany({
-        _id: { $in: direccionesCreadas.map((direccion) => direccion._id) },
-      }).catch(() => {});
+      await eliminarDireccionesSinReferencias(
+        direccionesCreadas.map((direccion) => direccion._id)
+      ).catch(() => {});
     }
     throw error;
   }
@@ -179,47 +213,86 @@ const actualizarAfiliado = async (id, datos) => {
   delete cambios.afiliadoTitularId;
   delete cambios.parentesco;
 
-  if (datos.direccion) {
-    await actualizarDireccion(afiliadoActual.direccionId, datos.direccion);
-  }
+  const direccionesNuevas = [];
+  let idsDireccionesAnteriores = [];
 
-  if (Array.isArray(datos.direcciones) && datos.direcciones.length) {
-    const idsDireccionesAnteriores = afiliadoActual.direccionesIds?.length
-      ? afiliadoActual.direccionesIds
-      : [afiliadoActual.direccionId].filter(Boolean);
-    const direccionesNuevas = [];
+  try {
+    if (Array.isArray(datos.direcciones) && datos.direcciones.length) {
+      idsDireccionesAnteriores = afiliadoActual.direccionesIds?.length
+        ? afiliadoActual.direccionesIds.map(String)
+        : [afiliadoActual.direccionId].filter(Boolean).map(String);
 
-    for (const direccionInformada of datos.direcciones) {
-      direccionesNuevas.push(await crearDireccion(direccionInformada));
+      for (const direccionInformada of datos.direcciones) {
+        direccionesNuevas.push(await crearDireccion(direccionInformada));
+      }
+
+      cambios.direccionId = direccionesNuevas[0]._id;
+      cambios.direccionesIds = direccionesNuevas.map(
+        (direccion) => direccion._id
+      );
+    } else if (datos.direccion) {
+      const direccionActual = await Direccion.findById(
+        afiliadoActual.direccionId
+      );
+      if (!direccionActual) {
+        throw new ErrorAplicacion(
+          'Dirección principal no encontrada',
+          404,
+          'DIRECCION_NO_ENCONTRADA'
+        );
+      }
+
+      const direccionNueva = await crearDireccion(
+        obtenerDatosDireccion(direccionActual, datos.direccion)
+      );
+      direccionesNuevas.push(direccionNueva);
+      idsDireccionesAnteriores = [String(direccionActual._id)];
+      cambios.direccionId = direccionNueva._id;
+
+      const idsActuales = afiliadoActual.direccionesIds?.length
+        ? afiliadoActual.direccionesIds.map(String)
+        : [String(direccionActual._id)];
+      let reemplazada = false;
+      const idsActualizados = idsActuales.map((idDireccion) => {
+        if (idDireccion === String(direccionActual._id)) {
+          reemplazada = true;
+          return direccionNueva._id;
+        }
+        return idDireccion;
+      });
+      if (!reemplazada) idsActualizados.unshift(direccionNueva._id);
+      cambios.direccionesIds = idsActualizados;
     }
 
-    cambios.direccionId = direccionesNuevas[0]._id;
-    cambios.direccionesIds = direccionesNuevas.map(
-      (direccion) => direccion._id
-    );
-
-    await Direccion.deleteMany({
-      _id: { $in: idsDireccionesAnteriores },
+    const afiliado = await Afiliado.findByIdAndUpdate(id, cambios, {
+      new: true,
+      runValidators: true,
     });
+
+    if (idsDireccionesAnteriores.length) {
+      await eliminarDireccionesSinReferencias(idsDireccionesAnteriores);
+    }
+
+    if (datos.situacionesTerapeuticas !== undefined) {
+      await SituacionTerapeutica.updateMany(
+        { _id: { $in: situacionesAnteriores } },
+        { $pull: { afiliados: afiliado._id } }
+      );
+      await SituacionTerapeutica.updateMany(
+        { _id: { $in: afiliado.situacionesTerapeuticas } },
+        { $addToSet: { afiliados: afiliado._id } }
+      );
+    }
+
+    return afiliado;
+  } catch (error) {
+    if (direccionesNuevas.length) {
+      await eliminarDireccionesSinReferencias(
+        direccionesNuevas.map((direccion) => direccion._id)
+      ).catch(() => {});
+    }
+    throw error;
   }
-
-  const afiliado = await Afiliado.findByIdAndUpdate(id, cambios, {
-    new: true,
-    runValidators: true,
-  });
-
-  if (datos.situacionesTerapeuticas !== undefined) {
-    await SituacionTerapeutica.updateMany(
-      { _id: { $in: situacionesAnteriores } },
-      { $pull: { afiliados: afiliado._id } }
-    );
-    await SituacionTerapeutica.updateMany(
-      { _id: { $in: afiliado.situacionesTerapeuticas } },
-      { $addToSet: { afiliados: afiliado._id } }
-    );
-  }
-
-  return afiliado;
 };
 
 module.exports = { crearAfiliado, actualizarAfiliado };
