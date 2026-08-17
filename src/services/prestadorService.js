@@ -69,13 +69,15 @@ const crearPrestador = async (datos) => {
     esCentroMedico: Boolean(datos.esCentroMedico),
   });
 
-  const centrosDeAtencion = await Promise.all(
-    (datos.centrosDeAtencion || []).map((centro) =>
-      servicioCentroDeAtencion.createCentroDeAtencion(centro)
-    )
-  );
+  const centrosDeAtencion = [];
 
   try {
+    for (const datosCentro of datos.centrosDeAtencion || []) {
+      centrosDeAtencion.push(
+        await servicioCentroDeAtencion.createCentroDeAtencion(datosCentro)
+      );
+    }
+
     return await Prestador.create({
       nombre: datos.nombre,
       cuilCuit: datos.cuilCuit,
