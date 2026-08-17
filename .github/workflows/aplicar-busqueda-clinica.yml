@@ -1,0 +1,63 @@
+name: Aplicar búsqueda clínica del prestador
+
+on:
+  push:
+    branches:
+      - agent/integrar-aplicaciones-2-3
+    paths:
+      - scripts/mejorarBusquedaClinica.js
+      - .github/workflows/aplicar-busqueda-clinica.yml
+
+permissions:
+  contents: write
+
+jobs:
+  aplicar:
+    runs-on: ubuntu-latest
+    services:
+      mongodb:
+        image: mongo:7
+        ports:
+          - 27017:27017
+        options: >-
+          --health-cmd "mongosh --eval 'db.runCommand({ ping: 1 })'"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      MONGO_URI_TEST: mongodb://127.0.0.1:27017/medintegral_test
+      SECRETO_AUTENTICACION_TEST: secreto-ci-pruebas
+
+    steps:
+      - name: Descargar rama
+        uses: actions/checkout@v4
+        with:
+          ref: agent/integrar-aplicaciones-2-3
+          fetch-depth: 0
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Mejorar búsqueda clínica
+        run: node scripts/mejorarBusquedaClinica.js
+
+      - name: Ejecutar pruebas
+        run: npm test
+
+      - name: Publicar integración
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/routes/portalPrestadorRutas.js tests/busquedaClinicaPrestador.test.js
+          if git diff --cached --quiet; then
+            echo "No hay cambios para publicar"
+            exit 0
+          fi
+          git commit -m "Mejorar búsqueda de pacientes para historia clínica"
+          git push origin HEAD:agent/integrar-aplicaciones-2-3
