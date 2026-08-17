@@ -30,13 +30,40 @@ const convertirAHora = (minutosTotales) =>
     minutosTotales % 60
   ).padStart(2, '0')}`;
 
+const normalizarTexto = (valor) =>
+  String(valor || '')
+    .trim()
+    .toLocaleLowerCase('es');
+
+const obtenerLimiteHorario = (valor, nombre) => {
+  if (!valor) return null;
+
+  const minutos = convertirAMinutos(valor);
+  if (!Number.isFinite(minutos) || minutos < 0 || minutos > 1439) {
+    const error = new Error(`El ${nombre} debe tener formato HH:mm`);
+    error.statusCode = 400;
+    throw error;
+  }
+
+  return minutos;
+};
+
 rutas.get('/disponibilidad', async (peticion, respuesta, siguiente) => {
   try {
-    const fecha = new Date(`${peticion.query.fecha}T12:00:00`);
-    if (Number.isNaN(fecha.getTime())) {
+    const fechaTexto = String(peticion.query.fecha || '').trim();
+    const fecha = new Date(`${fechaTexto}T12:00:00`);
+    if (!fechaTexto || Number.isNaN(fecha.getTime())) {
       return respuesta
         .status(400)
         .json({ message: 'Debe indicar una fecha válida' });
+    }
+
+    const horaDesde = obtenerLimiteHorario(peticion.query.horaDesde, 'horario desde');
+    const horaHasta = obtenerLimiteHorario(peticion.query.horaHasta, 'horario hasta');
+    if (horaDesde !== null && horaHasta !== null && horaDesde > horaHasta) {
+      return respuesta.status(400).json({
+        message: 'El horario desde no puede ser posterior al horario hasta',
+      });
     }
 
     const claveDia = CLAVES_DIAS[fecha.getDay()];
@@ -56,6 +83,15 @@ rutas.get('/disponibilidad', async (peticion, respuesta, siguiente) => {
         populate: { path: 'direccionId' },
       });
 
+    const localidadBuscada = normalizarTexto(peticion.query.localidad);
+    const agendasFiltradas = localidadBuscada
+      ? agendas.filter((agenda) =>
+          normalizarTexto(
+            agenda.centroDeAtencionId?.direccionId?.localidad
+          ).includes(localidadBuscada)
+        )
+      : agendas;
+
     const inicioDia = new Date(fecha);
     inicioDia.setHours(0, 0, 0, 0);
     const finDia = new Date(inicioDia);
@@ -69,8 +105,9 @@ rutas.get('/disponibilidad', async (peticion, respuesta, siguiente) => {
       turnosOcupados.map((turno) => `${turno.agendaId}:${turno.hora}`)
     );
 
+    const ahora = new Date();
     const horariosDisponibles = [];
-    for (const agenda of agendas) {
+    for (const agenda of agendasFiltradas) {
       const dia = agenda.horario?.dias?.[claveDia];
       if (!dia?.atiende) continue;
 
@@ -84,14 +121,20 @@ rutas.get('/disponibilidad', async (peticion, respuesta, siguiente) => {
           cursorMinutos + duracionTurno <= hasta;
           cursorMinutos += duracionTurno
         ) {
+          if (horaDesde !== null && cursorMinutos < horaDesde) continue;
+          if (horaHasta !== null && cursorMinutos > horaHasta) continue;
+
           const hora = convertirAHora(cursorMinutos);
+          const fechaHora = new Date(`${fechaTexto}T${hora}:00`);
+          if (fechaHora <= ahora) continue;
+
           if (!clavesOcupadas.has(`${agenda._id}:${hora}`)) {
             horariosDisponibles.push({
               agendaId: agenda._id,
               prestador: agenda.prestadorId,
               especialidad: agenda.especialidadId,
               centro: agenda.centroDeAtencionId,
-              fecha: peticion.query.fecha,
+              fecha: fechaTexto,
               hora,
               duracionTurno,
             });
@@ -99,6 +142,10 @@ rutas.get('/disponibilidad', async (peticion, respuesta, siguiente) => {
         }
       }
     }
+
+    horariosDisponibles.sort((primero, segundo) =>
+      primero.hora.localeCompare(segundo.hora)
+    );
 
     respuesta.json(horariosDisponibles);
   } catch (error) {
