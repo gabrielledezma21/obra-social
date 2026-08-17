@@ -11,6 +11,17 @@ const reemplazarObligatorio = (patron, reemplazo, descripcion) => {
   contenido = actualizado;
 };
 
+const bloqueEscapeRegex = [
+  'const escaparRegex = (valor) => {',
+  "  const especiales = '\\\\^$.*+?()[]{}|';",
+  "  return [...String(valor || '')]",
+  '    .map((caracter) =>',
+  "      especiales.includes(caracter) ? '\\\\' + caracter : caracter",
+  '    )',
+  "    .join('');",
+  '};',
+].join('\n');
+
 reemplazarObligatorio(
   "const { Afiliado, Prestador } = require('../models');",
   "const { Afiliado, Prestador, SituacionTerapeutica } = require('../models');",
@@ -19,7 +30,8 @@ reemplazarObligatorio(
 
 reemplazarObligatorio(
   "const rutas = Router();\nrutas.use(autenticar, requerirRol('PRESTADOR'));",
-  `const rutas = Router();\nrutas.use(autenticar, requerirRol('PRESTADOR'));\n\nconst escaparRegex = (valor) => String(valor || '').replace(/[.*+?^\${}()|[\\]\\\\]/g, '\\\\$&');`,
+  "const rutas = Router();\nrutas.use(autenticar, requerirRol('PRESTADOR'));\n\n" +
+    bloqueEscapeRegex,
   'agregar escape seguro para búsquedas'
 );
 
