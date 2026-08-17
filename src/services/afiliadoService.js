@@ -6,6 +6,23 @@ const {
 } = require('./direccionService');
 const ErrorAplicacion = require('../exceptions/appError');
 
+const validarSituacionesTerapeuticas = async (identificadores = []) => {
+  if (!Array.isArray(identificadores) || identificadores.length === 0) return;
+
+  const idsUnicos = [...new Set(identificadores.map(String))];
+  const cantidadExistente = await SituacionTerapeutica.countDocuments({
+    _id: { $in: idsUnicos },
+  });
+
+  if (cantidadExistente !== idsUnicos.length) {
+    throw new ErrorAplicacion(
+      'Una o más situaciones terapéuticas informadas no existen',
+      400,
+      'SITUACION_TERAPEUTICA_INVALIDA'
+    );
+  }
+};
+
 const obtenerSiguienteNumeroAfiliado = async () => {
   let contador = await Contador.findById('numeroAfiliado');
 
@@ -43,6 +60,8 @@ const crearAfiliado = async (datos) => {
   const direccionesCreadas = [];
 
   try {
+    await validarSituacionesTerapeuticas(datos.situacionesTerapeuticas || []);
+
     const direccionesInformadas =
       Array.isArray(datos.direcciones) && datos.direcciones.length
         ? datos.direcciones
@@ -147,6 +166,10 @@ const actualizarAfiliado = async (id, datos) => {
     );
   }
 
+  if (datos.situacionesTerapeuticas !== undefined) {
+    await validarSituacionesTerapeuticas(datos.situacionesTerapeuticas);
+  }
+
   const situacionesAnteriores = afiliadoActual.situacionesTerapeuticas.map(String);
   const cambios = { ...datos };
   delete cambios.direccion;
@@ -185,7 +208,7 @@ const actualizarAfiliado = async (id, datos) => {
     runValidators: true,
   });
 
-  if (datos.situacionesTerapeuticas) {
+  if (datos.situacionesTerapeuticas !== undefined) {
     await SituacionTerapeutica.updateMany(
       { _id: { $in: situacionesAnteriores } },
       { $pull: { afiliados: afiliado._id } }
