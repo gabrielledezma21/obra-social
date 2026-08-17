@@ -35,7 +35,10 @@ const validarDatosActivacion = (dni, email) => {
   const dniNormalizado = normalizarDni(dni);
   const emailNormalizado = normalizarEmail(email);
 
-  if (!/^\d{7,8}$/.test(dniNormalizado) || !/^\S+@\S+\.\S+$/.test(emailNormalizado)) {
+  if (
+    !/^\d{7,8}$/.test(dniNormalizado) ||
+    !/^\S+@\S+\.\S+$/.test(emailNormalizado)
+  ) {
     throw new ErrorAplicacion('DNI y email válidos son obligatorios', 400);
   }
 
@@ -70,6 +73,26 @@ const crearUsuarioActivado = async ({
   afiliadoId = null,
   prestadorId = null,
 }) => {
+  const filtroEntidad = afiliadoId
+    ? { afiliadoId }
+    : prestadorId
+      ? { prestadorId }
+      : null;
+
+  const usuarioLegado = filtroEntidad
+    ? await Usuario.findOne({ rol, ...filtroEntidad })
+    : null;
+
+  if (usuarioLegado && !usuarioLegado.dniAcceso) {
+    usuarioLegado.email = emailNormalizado;
+    usuarioLegado.dniAcceso = dniNormalizado;
+    usuarioLegado.hashContrasena = generarHashContrasena(dniNormalizado);
+    usuarioLegado.debeCambiarContrasena = true;
+    usuarioLegado.activo = true;
+    await usuarioLegado.save();
+    return usuarioLegado;
+  }
+
   const usuarioExistente = await Usuario.findOne({
     rol,
     $or: [
@@ -147,7 +170,9 @@ rutas.post('/activar-prestador', async (peticion, respuesta, siguiente) => {
       'emails.direccion': emailNormalizado,
     });
     const prestador = prestadores.find(
-      (elemento) => obtenerDniDesdeCuil(elemento.cuilCuit) === String(Number(dniNormalizado))
+      (elemento) =>
+        obtenerDniDesdeCuil(elemento.cuilCuit) ===
+        String(Number(dniNormalizado))
     );
 
     if (!prestador) {
@@ -180,8 +205,16 @@ rutas.post('/iniciar-sesion', async (peticion, respuesta, siguiente) => {
     const contrasena = String(peticion.body.contrasena || '');
     const rol = String(peticion.body.rol || '').toUpperCase();
 
-    if (!identificador || !contrasena || !['ADMIN', 'AFILIADO', 'PRESTADOR'].includes(rol)) {
-      throw new ErrorAplicacion('Credenciales inválidas', 401, 'CREDENCIALES_INVALIDAS');
+    if (
+      !identificador ||
+      !contrasena ||
+      !['ADMIN', 'AFILIADO', 'PRESTADOR'].includes(rol)
+    ) {
+      throw new ErrorAplicacion(
+        'Credenciales inválidas',
+        401,
+        'CREDENCIALES_INVALIDAS'
+      );
     }
 
     const identificadorEmail = normalizarEmail(identificador);
@@ -216,44 +249,53 @@ rutas.post('/iniciar-sesion', async (peticion, respuesta, siguiente) => {
   }
 });
 
-rutas.post('/cambiar-contrasena', autenticar, async (peticion, respuesta, siguiente) => {
-  try {
-    const contrasenaActual = String(peticion.body.contrasenaActual || '');
-    const contrasenaNueva = String(peticion.body.contrasenaNueva || '');
+rutas.post(
+  '/cambiar-contrasena',
+  autenticar,
+  async (peticion, respuesta, siguiente) => {
+    try {
+      const contrasenaActual = String(peticion.body.contrasenaActual || '');
+      const contrasenaNueva = String(peticion.body.contrasenaNueva || '');
 
-    if (!verificarContrasena(contrasenaActual, peticion.usuario.hashContrasena)) {
-      throw new ErrorAplicacion(
-        'La contraseña actual es incorrecta',
-        400,
-        'CONTRASENA_ACTUAL_INVALIDA'
-      );
-    }
-    if (contrasenaNueva.length < 8) {
-      throw new ErrorAplicacion(
-        'La nueva contraseña debe tener al menos 8 caracteres',
-        400,
-        'CONTRASENA_DEBIL'
-      );
-    }
-    if (contrasenaNueva === contrasenaActual) {
-      throw new ErrorAplicacion(
-        'La nueva contraseña debe ser diferente de la actual',
-        400,
-        'CONTRASENA_SIN_CAMBIOS'
-      );
-    }
+      if (
+        !verificarContrasena(
+          contrasenaActual,
+          peticion.usuario.hashContrasena
+        )
+      ) {
+        throw new ErrorAplicacion(
+          'La contraseña actual es incorrecta',
+          400,
+          'CONTRASENA_ACTUAL_INVALIDA'
+        );
+      }
+      if (contrasenaNueva.length < 8) {
+        throw new ErrorAplicacion(
+          'La nueva contraseña debe tener al menos 8 caracteres',
+          400,
+          'CONTRASENA_DEBIL'
+        );
+      }
+      if (contrasenaNueva === contrasenaActual) {
+        throw new ErrorAplicacion(
+          'La nueva contraseña debe ser diferente de la actual',
+          400,
+          'CONTRASENA_SIN_CAMBIOS'
+        );
+      }
 
-    peticion.usuario.hashContrasena = generarHashContrasena(contrasenaNueva);
-    peticion.usuario.debeCambiarContrasena = false;
-    await peticion.usuario.save();
+      peticion.usuario.hashContrasena = generarHashContrasena(contrasenaNueva);
+      peticion.usuario.debeCambiarContrasena = false;
+      await peticion.usuario.save();
 
-    respuesta.json({
-      mensaje: 'Contraseña actualizada correctamente',
-      usuario: peticion.usuario,
-    });
-  } catch (error) {
-    siguiente(error);
+      respuesta.json({
+        mensaje: 'Contraseña actualizada correctamente',
+        usuario: peticion.usuario,
+      });
+    } catch (error) {
+      siguiente(error);
+    }
   }
-});
+);
 
 module.exports = rutas;
