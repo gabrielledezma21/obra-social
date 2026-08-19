@@ -51,13 +51,15 @@ const cargarAfiliadosMensuales = async () => {
     plantillas.map(({ mes, plan, indice, secuencia }, posicion) => ({
       nombre: `Demo${secuencia}`,
       apellido: `Plan${plan}`,
-      fechaNacimiento: new Date(`19${80 + (secuencia % 18)}-06-15T12:00:00.000Z`),
+      fechaNacimiento: new Date(
+        `19${80 + (secuencia % 18)}-06-15T12:00:00.000Z`
+      ),
       tipoDocumento: 'DNI',
       dni: 50000000 + secuencia,
       numeroAfiliado: 3000 + secuencia,
       numeroIntegrante: 1,
       parentesco: 'Titular',
-      emails: [{ direccion: `demo${secuencia}@medintegral.test` }],
+      emails: [{ direccion: `demo${secuencia}@medintegral.com` }],
       telefonos: [{ numero: String(1160000000 + secuencia) }],
       direccionId: direccionesCreadas[posicion]._id,
       direccionesIds: [direccionesCreadas[posicion]._id],
@@ -105,7 +107,7 @@ const cargarGrupoFamiliar = async () => {
     numeroIntegrante: 1,
     parentesco: 'Titular',
     situacionesTerapeuticas: situaciones[0] ? [situaciones[0]._id] : [],
-    emails: [{ direccion: 'laura.prueba@medintegral.test' }],
+    emails: [{ direccion: 'laura.prueba@medintegral.com' }],
     telefonos: [{ numero: '1169990001' }],
     direccionId: direcciones[0]._id,
     direccionesIds: [direcciones[0]._id],
@@ -124,7 +126,7 @@ const cargarGrupoFamiliar = async () => {
       numeroIntegrante: 2,
       parentesco: 'Conyuge',
       situacionesTerapeuticas: situaciones[1] ? [situaciones[1]._id] : [],
-      emails: [{ direccion: 'martin.prueba@medintegral.test' }],
+      emails: [{ direccion: 'martin.prueba@medintegral.com' }],
       telefonos: [{ numero: '1169990002' }],
       direccionId: direcciones[1]._id,
       direccionesIds: [direcciones[1]._id],
@@ -142,7 +144,7 @@ const cargarGrupoFamiliar = async () => {
       numeroIntegrante: 3,
       parentesco: 'Hijo',
       situacionesTerapeuticas: situaciones[2] ? [situaciones[2]._id] : [],
-      emails: [{ direccion: 'sofia.prueba@medintegral.test' }],
+      emails: [{ direccion: 'sofia.prueba@medintegral.com' }],
       telefonos: [{ numero: '1169990003' }],
       direccionId: direcciones[2]._id,
       direccionesIds: [direcciones[2]._id],
@@ -176,7 +178,9 @@ const cargarPrestadoresAdicionales = async () => {
   const centros = await CentroDeAtencion.find().populate('direccionId');
 
   if (especialidades.length === 0 || centros.length === 0) {
-    throw new Error('La seed base no generó especialidades o centros de atención');
+    throw new Error(
+      'La seed base no generó especialidades o centros de atención'
+    );
   }
 
   const buscarEspecialidad = (nombre) =>
@@ -206,7 +210,9 @@ const cargarPrestadoresAdicionales = async () => {
     configuraciones.map(([especialidad, localidad], indice) => ({
       nombre: `Prestador Demo ${String(indice + 1).padStart(2, '0')}`,
       cuilCuit: String(20910000001 + indice),
-      emails: [{ direccion: `prestador.demo${indice + 1}@medintegral.test` }],
+      emails: [
+        { direccion: `prestador.demo${indice + 1}@medintegral.com` },
+      ],
       telefonos: [{ numero: String(1171000000 + indice) }],
       especialidades: [buscarEspecialidad(especialidad)._id],
       centrosDeAtencion: [buscarCentro(localidad)._id],
@@ -219,7 +225,9 @@ const ejecutar = async () => {
     throw new Error('La semilla ampliada está bloqueada en producción');
   }
 
-  console.log('⚠️  La semilla ampliada limpia la base configurada antes de cargar datos demo.');
+  console.log(
+    '⚠️  La semilla ampliada limpia la base configurada antes de cargar datos demo.'
+  );
   await ejecutarSeedBase({ limpiar: true });
 
   const afiliadosMensuales = await cargarAfiliadosMensuales();
@@ -227,8 +235,12 @@ const ejecutar = async () => {
   const prestadores = await cargarPrestadoresAdicionales();
 
   console.log('✅ Semilla demo ampliada cargada');
-  console.log(`   Afiliados mensuales adicionales: ${afiliadosMensuales.length}`);
-  console.log(`   Integrantes del grupo familiar de prueba: ${grupoFamiliar.length}`);
+  console.log(
+    `   Afiliados mensuales adicionales: ${afiliadosMensuales.length}`
+  );
+  console.log(
+    `   Integrantes del grupo familiar de prueba: ${grupoFamiliar.length}`
+  );
   console.log(`   Prestadores adicionales: ${prestadores.length}`);
   console.log('   Distribución esperada de altas:');
   console.table(DISTRIBUCION_ALTAS);
