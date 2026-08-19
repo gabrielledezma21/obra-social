@@ -1,4 +1,6 @@
-const { Prestador, Agenda, CentroDeAtencion, Especialidad } = require('../src/models');
+const { Prestador, Agenda } = require('../src/models');
+const { mongo } = require('../src/config');
+const { mongoose } = require('../src/config/db');
 
 const crearHorarioAgenda = (
   diasAtencion,
@@ -56,6 +58,8 @@ const ejecutar = async () => {
     throw new Error('La carga de agendas demo está bloqueada en producción');
   }
 
+  await mongo.conectarDB();
+
   const prestadoresDemo = await Prestador.find({
     nombre: /^Prestador Demo /,
   })
@@ -70,8 +74,11 @@ const ejecutar = async () => {
   }
 
   const prestadoresConAgenda = new Set(
-    (await Agenda.find({ prestadorId: { $in: prestadoresDemo.map((p) => p._id) } }))
-      .map((agenda) => String(agenda.prestadorId))
+    (
+      await Agenda.find({
+        prestadorId: { $in: prestadoresDemo.map((prestador) => prestador._id) },
+      })
+    ).map((agenda) => String(agenda.prestadorId))
   );
 
   const candidatos = prestadoresDemo.filter(
@@ -119,8 +126,12 @@ const ejecutar = async () => {
 };
 
 ejecutar()
-  .then(() => process.exit(0))
-  .catch((error) => {
+  .then(async () => {
+    await mongoose.disconnect();
+    process.exit(0);
+  })
+  .catch(async (error) => {
     console.error('❌ Error al completar agendas demo:', error);
+    await mongoose.disconnect().catch(() => {});
     process.exit(1);
   });
