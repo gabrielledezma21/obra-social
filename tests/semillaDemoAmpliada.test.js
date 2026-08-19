@@ -35,9 +35,38 @@ test('la semilla ampliada está bloqueada en producción y genera datos variados
   assert.match(paquete, /db:demo-ampliada/);
 });
 
+test('la semilla agrega especialidades y situaciones terapéuticas variadas', () => {
+  const semilla = leer('scripts/cargarSemillaDemoAmpliada.js');
+
+  for (const especialidad of [
+    'Oftalmologia',
+    'Neurologia',
+    'Psiquiatria',
+    'Endocrinologia',
+    'Gastroenterologia',
+    'Kinesiologia',
+    'Nutricion',
+    'Odontologia',
+    'Neumonologia',
+  ]) {
+    assert.match(semilla, new RegExp(especialidad));
+  }
+
+  assert.match(semilla, /Especialidades totales/);
+  assert.match(semilla, /Situaciones terapéuticas totales/);
+});
+
 test('los prestadores demo usan correos compatibles con el validador actual', () => {
   const semilla = leer('scripts/cargarSemillaDemoAmpliada.js');
 
   assert.match(semilla, /prestador\.demo\$\{indice \+ 1\}@medintegral\.com/);
   assert.doesNotMatch(semilla, /prestador\.demo[^'`]*@medintegral\.test/);
+});
+
+test('las agendas ampliadas identifican los prestadores por rango estable de CUIT', () => {
+  const agendas = leer('scripts/completarAgendasDemo.js');
+
+  assert.match(agendas, /cuilCuit: \/\^209100000\//);
+  assert.match(agendas, /await mongo\.conectarDB\(\)/);
+  assert.match(agendas, /candidatos\.slice\(0, 9\)/);
 });
