@@ -55,7 +55,7 @@ const enviarCorreo = async ({ destinatario, asunto, html, texto, idempotencia })
   return { enviado: true, id: datos.id || null };
 };
 
-const enviarConfirmacionTurno = async ({
+const obtenerDatosPresentacion = ({
   turno,
   tokenGestion,
   afiliado,
@@ -74,69 +74,154 @@ const enviarConfirmacionTurno = async ({
   const hora = turno.hora || '';
   const codigo = turno.codigoReserva;
 
-  const urlVer = construirUrlGestionTurno({
-    codigoReserva: codigo,
-    tokenGestion,
-    accion: 'ver',
-  });
-  const urlReagendar = construirUrlGestionTurno({
-    codigoReserva: codigo,
-    tokenGestion,
-    accion: 'reagendar',
-  });
-  const urlCancelar = construirUrlGestionTurno({
-    codigoReserva: codigo,
-    tokenGestion,
-    accion: 'cancelar',
-  });
+  return {
+    destinatario,
+    nombreAfiliado,
+    nombrePrestador,
+    nombreEspecialidad,
+    nombreCentro,
+    fecha,
+    hora,
+    codigo,
+    urlVer: construirUrlGestionTurno({
+      codigoReserva: codigo,
+      tokenGestion,
+      accion: 'ver',
+    }),
+    urlReagendar: construirUrlGestionTurno({
+      codigoReserva: codigo,
+      tokenGestion,
+      accion: 'reagendar',
+    }),
+    urlCancelar: construirUrlGestionTurno({
+      codigoReserva: codigo,
+      tokenGestion,
+      accion: 'cancelar',
+    }),
+  };
+};
 
+const construirDetalleHtml = (datos) => `
+  <div style="background:#f8fafc;border-radius:12px;padding:16px;margin:20px 0">
+    <strong>${escaparHtml(datos.nombrePrestador)}</strong><br />
+    ${escaparHtml(datos.nombreEspecialidad)}<br />
+    ${escaparHtml(datos.nombreCentro)}<br />
+    ${escaparHtml(datos.fecha)} — ${escaparHtml(datos.hora)}
+  </div>
+  <p>Código de reserva: <strong>${escaparHtml(datos.codigo)}</strong></p>
+`;
+
+const construirAccionesHtml = (datos) => `
+  <p style="margin-top:24px">
+    <a href="${escaparHtml(datos.urlVer)}" style="margin-right:12px">Ver turno</a>
+    <a href="${escaparHtml(datos.urlReagendar)}" style="margin-right:12px">Reagendar</a>
+    <a href="${escaparHtml(datos.urlCancelar)}">Cancelar</a>
+  </p>
+  <p style="font-size:12px;color:#64748b;margin-top:28px">
+    No compartas estos enlaces: permiten gestionar tu reserva sin iniciar sesión.
+  </p>
+`;
+
+const enviarConfirmacionTurno = async (parametros) => {
+  const datos = obtenerDatosPresentacion(parametros);
   const html = `
     <div style="font-family:Arial,sans-serif;max-width:620px;margin:auto;color:#1f2937">
       <h2 style="color:#0f766e">Turno confirmado — MedIntegral</h2>
-      <p>Hola ${escaparHtml(nombreAfiliado || 'paciente')},</p>
+      <p>Hola ${escaparHtml(datos.nombreAfiliado || 'paciente')},</p>
       <p>Tu turno quedó confirmado.</p>
-      <div style="background:#f8fafc;border-radius:12px;padding:16px;margin:20px 0">
-        <strong>${escaparHtml(nombrePrestador)}</strong><br />
-        ${escaparHtml(nombreEspecialidad)}<br />
-        ${escaparHtml(nombreCentro)}<br />
-        ${escaparHtml(fecha)} — ${escaparHtml(hora)}
-      </div>
-      <p>Código de reserva: <strong>${escaparHtml(codigo)}</strong></p>
-      <p style="margin-top:24px">
-        <a href="${escaparHtml(urlVer)}" style="margin-right:12px">Ver turno</a>
-        <a href="${escaparHtml(urlReagendar)}" style="margin-right:12px">Reagendar</a>
-        <a href="${escaparHtml(urlCancelar)}">Cancelar</a>
-      </p>
-      <p style="font-size:12px;color:#64748b;margin-top:28px">
-        No compartas estos enlaces: permiten gestionar tu reserva sin iniciar sesión.
-      </p>
+      ${construirDetalleHtml(datos)}
+      ${construirAccionesHtml(datos)}
     </div>
   `;
-
   const texto = [
-    `Hola ${nombreAfiliado || 'paciente'},`,
+    `Hola ${datos.nombreAfiliado || 'paciente'},`,
     '',
     'Tu turno quedó confirmado.',
-    `${nombrePrestador} - ${nombreEspecialidad}`,
-    nombreCentro,
-    `${fecha} - ${hora}`,
+    `${datos.nombrePrestador} - ${datos.nombreEspecialidad}`,
+    datos.nombreCentro,
+    `${datos.fecha} - ${datos.hora}`,
     '',
-    `Código de reserva: ${codigo}`,
-    `Ver turno: ${urlVer}`,
-    `Reagendar: ${urlReagendar}`,
-    `Cancelar: ${urlCancelar}`,
+    `Código de reserva: ${datos.codigo}`,
+    `Ver turno: ${datos.urlVer}`,
+    `Reagendar: ${datos.urlReagendar}`,
+    `Cancelar: ${datos.urlCancelar}`,
   ].join('\n');
 
   return enviarCorreo({
-    destinatario,
-    asunto: `Turno confirmado — ${codigo}`,
+    destinatario: datos.destinatario,
+    asunto: `Turno confirmado — ${datos.codigo}`,
     html,
     texto,
-    idempotencia: `turno-confirmado-${codigo}`,
+    idempotencia: `turno-confirmado-${datos.codigo}-${datos.fecha}-${datos.hora}`,
+  });
+};
+
+const enviarReagendamientoTurno = async (parametros) => {
+  const datos = obtenerDatosPresentacion(parametros);
+  const html = `
+    <div style="font-family:Arial,sans-serif;max-width:620px;margin:auto;color:#1f2937">
+      <h2 style="color:#0f766e">Turno reagendado — MedIntegral</h2>
+      <p>Hola ${escaparHtml(datos.nombreAfiliado || 'paciente')},</p>
+      <p>Tu turno fue reagendado. Estos son los nuevos datos:</p>
+      ${construirDetalleHtml(datos)}
+      ${construirAccionesHtml(datos)}
+    </div>
+  `;
+  const texto = [
+    `Hola ${datos.nombreAfiliado || 'paciente'},`,
+    '',
+    'Tu turno fue reagendado.',
+    `${datos.nombrePrestador} - ${datos.nombreEspecialidad}`,
+    datos.nombreCentro,
+    `${datos.fecha} - ${datos.hora}`,
+    '',
+    `Código de reserva: ${datos.codigo}`,
+    `Ver turno: ${datos.urlVer}`,
+    `Reagendar: ${datos.urlReagendar}`,
+    `Cancelar: ${datos.urlCancelar}`,
+  ].join('\n');
+
+  return enviarCorreo({
+    destinatario: datos.destinatario,
+    asunto: `Turno reagendado — ${datos.codigo}`,
+    html,
+    texto,
+    idempotencia: `turno-reagendado-${datos.codigo}-${datos.fecha}-${datos.hora}`,
+  });
+};
+
+const enviarCancelacionTurno = async (parametros) => {
+  const datos = obtenerDatosPresentacion(parametros);
+  const html = `
+    <div style="font-family:Arial,sans-serif;max-width:620px;margin:auto;color:#1f2937">
+      <h2 style="color:#0f766e">Turno cancelado — MedIntegral</h2>
+      <p>Hola ${escaparHtml(datos.nombreAfiliado || 'paciente')},</p>
+      <p>Tu turno fue cancelado correctamente.</p>
+      ${construirDetalleHtml(datos)}
+    </div>
+  `;
+  const texto = [
+    `Hola ${datos.nombreAfiliado || 'paciente'},`,
+    '',
+    'Tu turno fue cancelado correctamente.',
+    `${datos.nombrePrestador} - ${datos.nombreEspecialidad}`,
+    datos.nombreCentro,
+    `${datos.fecha} - ${datos.hora}`,
+    `Código de reserva: ${datos.codigo}`,
+  ].join('\n');
+
+  return enviarCorreo({
+    destinatario: datos.destinatario,
+    asunto: `Turno cancelado — ${datos.codigo}`,
+    html,
+    texto,
+    idempotencia: `turno-cancelado-${datos.codigo}`,
   });
 };
 
 module.exports = {
   construirUrlGestionTurno,
+  enviarCancelacionTurno,
   enviarConfirmacionTurno,
+  enviarReagendamientoTurno,
 };
