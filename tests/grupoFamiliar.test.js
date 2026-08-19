@@ -95,7 +95,7 @@ after(async () => {
   }
 });
 
-test('MedIntegral - vigencia del grupo familiar', async (t) => {
+test('MedIntegral - vigencia y domicilio del grupo familiar', async (t) => {
   await ejecutarSeed({ clean: true });
   const token = await iniciarAdministrador();
   const titular = await Afiliado.findOne({ dni: 10000001 });
@@ -171,6 +171,130 @@ test('MedIntegral - vigencia del grupo familiar', async (t) => {
     });
 
     assert.equal(respuesta.estado, 400, JSON.stringify(respuesta.datos));
-    assert.equal(respuesta.datos?.codigo, 'SOLO_TITULAR_PUEDE_MODIFICAR_GRUPO');
+    assert.equal(
+      respuesta.datos?.codigo,
+      'SOLO_TITULAR_PUEDE_MODIFICAR_GRUPO'
+    );
+  });
+
+  await t.test('un familiar puede usar el mismo domicilio del titular', async () => {
+    const respuesta = await solicitar(`/afiliados/${familiar._id}`, {
+      metodo: 'PUT',
+      token,
+      cuerpo: { comparteDomicilioTitular: true },
+    });
+    assert.equal(respuesta.estado, 200, JSON.stringify(respuesta.datos));
+
+    const [titularActual, familiarActual] = await Promise.all([
+      Afiliado.findById(titular._id),
+      Afiliado.findById(familiar._id),
+    ]);
+    assert.equal(familiarActual.comparteDomicilioTitular, true);
+    assert.equal(
+      String(familiarActual.direccionId),
+      String(titularActual.direccionId)
+    );
+  });
+
+  await t.test('el familiar compartido no puede editar el domicilio', async () => {
+    const respuesta = await solicitar(`/afiliados/${familiar._id}`, {
+      metodo: 'PUT',
+      token,
+      cuerpo: {
+        direcciones: [
+          {
+            calle: 'Calle Bloqueada',
+            altura: 100,
+            localidad: 'Moron',
+            codigoPostal: '1708',
+            provincia: 'Buenos Aires',
+          },
+        ],
+      },
+    });
+
+    assert.equal(respuesta.estado, 409, JSON.stringify(respuesta.datos));
+    assert.equal(
+      respuesta.datos?.codigo,
+      'DOMICILIO_COMPARTIDO_SOLO_TITULAR'
+    );
+  });
+
+  await t.test('editar el domicilio titular actualiza a quienes lo comparten', async () => {
+    const respuesta = await solicitar(`/afiliados/${titular._id}`, {
+      metodo: 'PUT',
+      token,
+      cuerpo: {
+        direcciones: [
+          {
+            calle: 'Domicilio Familiar',
+            altura: 1234,
+            pisoDepto: null,
+            localidad: 'Moron',
+            codigoPostal: '1708',
+            provincia: 'Buenos Aires',
+          },
+        ],
+      },
+    });
+    assert.equal(respuesta.estado, 200, JSON.stringify(respuesta.datos));
+
+    const [titularActual, familiarActual] = await Promise.all([
+      Afiliado.findById(titular._id),
+      Afiliado.findById(familiar._id),
+    ]);
+    assert.equal(
+      String(familiarActual.direccionId),
+      String(titularActual.direccionId)
+    );
+  });
+
+  await t.test('un familiar puede independizar su domicilio', async () => {
+    const respuesta = await solicitar(`/afiliados/${familiar._id}`, {
+      metodo: 'PUT',
+      token,
+      cuerpo: {
+        comparteDomicilioTitular: false,
+        direcciones: [
+          {
+            calle: 'Domicilio Propio',
+            altura: 987,
+            localidad: 'Haedo',
+            codigoPostal: '1706',
+            provincia: 'Buenos Aires',
+          },
+        ],
+      },
+    });
+    assert.equal(respuesta.estado, 200, JSON.stringify(respuesta.datos));
+
+    const [titularActual, familiarActual] = await Promise.all([
+      Afiliado.findById(titular._id),
+      Afiliado.findById(familiar._id),
+    ]);
+    assert.equal(familiarActual.comparteDomicilioTitular, false);
+    assert.notEqual(
+      String(familiarActual.direccionId),
+      String(titularActual.direccionId)
+    );
+  });
+
+  await t.test('el familiar puede volver al domicilio del titular', async () => {
+    const respuesta = await solicitar(`/afiliados/${familiar._id}`, {
+      metodo: 'PUT',
+      token,
+      cuerpo: { comparteDomicilioTitular: true },
+    });
+    assert.equal(respuesta.estado, 200, JSON.stringify(respuesta.datos));
+
+    const [titularActual, familiarActual] = await Promise.all([
+      Afiliado.findById(titular._id),
+      Afiliado.findById(familiar._id),
+    ]);
+    assert.equal(familiarActual.comparteDomicilioTitular, true);
+    assert.equal(
+      String(familiarActual.direccionId),
+      String(titularActual.direccionId)
+    );
   });
 });

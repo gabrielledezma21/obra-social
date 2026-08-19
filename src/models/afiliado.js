@@ -74,6 +74,10 @@ const esquemaAfiliado = new mongoose.Schema({
     required: true,
   },
   direccionesIds: [{ type: Esquema.Types.ObjectId, ref: 'Direccion' }],
+  comparteDomicilioTitular: {
+    type: Boolean,
+    default: false,
+  },
   plan: {
     type: String,
     required: true,

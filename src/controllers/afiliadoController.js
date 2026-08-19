@@ -157,7 +157,7 @@ const limpiarDirecciones = async (integrantes) => {
   ];
 
   if (idsDirecciones.length) {
-    await Direccion.deleteMany({ _id: { $in: idsDirecciones } });
+    await servicioAfiliado.eliminarDireccionesSinReferencias(idsDirecciones);
   }
 };
 
@@ -205,12 +205,25 @@ const eliminarAfiliado = async (peticion, respuesta) => {
     );
   }
 
+  const idsDirecciones = integrantes.flatMap((integrante) =>
+    [integrante.direccionId, ...(integrante.direccionesIds || [])]
+      .filter(Boolean)
+      .map(String)
+  );
+
   await Afiliado.deleteMany({ _id: { $in: idsIntegrantes } });
   await SituacionTerapeutica.updateMany(
     { afiliados: { $in: idsIntegrantes } },
     { $pull: { afiliados: { $in: idsIntegrantes } } }
   );
-  await limpiarDirecciones(integrantes);
+  await limpiarDirecciones(
+    integrantes.map((integrante) => ({
+      ...integrante.toObject(),
+      direccionId: integrante.direccionId,
+      direccionesIds: integrante.direccionesIds,
+    }))
+  );
+  await servicioAfiliado.eliminarDireccionesSinReferencias(idsDirecciones);
   await eliminarCacheModelos(Afiliado);
   await Promise.all(
     idsIntegrantes.map((id) => eliminarCacheModeloPorId(Afiliado, id))
@@ -224,10 +237,17 @@ const eliminarAfiliado = async (peticion, respuesta) => {
 };
 
 const obtenerIdsGrupoParaCache = async (afiliadoActual, peticion) => {
-  if (
-    !peticion.body.aplicarAGrupoFamiliar ||
-    afiliadoActual?.parentesco !== 'Titular'
-  ) {
+  const cambiaFechaBaja = Object.prototype.hasOwnProperty.call(
+    peticion.body,
+    'fechaBaja'
+  );
+  const cambiaDomicilio =
+    Object.prototype.hasOwnProperty.call(peticion.body, 'direccion') ||
+    Object.prototype.hasOwnProperty.call(peticion.body, 'direcciones');
+  const afectaGrupo =
+    peticion.body.aplicarAGrupoFamiliar || cambiaFechaBaja || cambiaDomicilio;
+
+  if (!afectaGrupo || afiliadoActual?.parentesco !== 'Titular') {
     return [];
   }
 

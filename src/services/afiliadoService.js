@@ -47,6 +47,29 @@ const eliminarDireccionesSinReferencias = async (identificadores = []) => {
   }
 };
 
+const obtenerIdsDirecciones = (afiliado) => {
+  if (afiliado?.direccionesIds?.length) {
+    return afiliado.direccionesIds.map((id) => id._id || id);
+  }
+  return [afiliado?.direccionId?._id || afiliado?.direccionId].filter(Boolean);
+};
+
+const crearDirecciones = async (direccionesInformadas, direccionesCreadas) => {
+  if (!direccionesInformadas.length) {
+    throw new ErrorAplicacion(
+      'Debe informar al menos una dirección',
+      400,
+      'DIRECCION_REQUERIDA'
+    );
+  }
+
+  for (const direccionInformada of direccionesInformadas) {
+    direccionesCreadas.push(await crearDireccion(direccionInformada));
+  }
+
+  return direccionesCreadas.map((direccion) => direccion._id);
+};
+
 const obtenerDatosDireccion = (direccion, cambios = {}) => ({
   calle: cambios.calle ?? direccion.calle,
   altura: cambios.altura ?? direccion.altura,
@@ -96,26 +119,12 @@ const crearAfiliado = async (datos) => {
   try {
     await validarSituacionesTerapeuticas(datos.situacionesTerapeuticas || []);
 
-    const direccionesInformadas =
-      Array.isArray(datos.direcciones) && datos.direcciones.length
-        ? datos.direcciones
-        : [datos.direccion].filter(Boolean);
-
-    if (!direccionesInformadas.length) {
-      throw new ErrorAplicacion(
-        'Debe informar al menos una dirección',
-        400,
-        'DIRECCION_REQUERIDA'
-      );
-    }
-
-    for (const direccionInformada of direccionesInformadas) {
-      direccionesCreadas.push(await crearDireccion(direccionInformada));
-    }
-
     const parentesco = datos.parentesco || 'Titular';
     let numeroAfiliado;
     let numeroIntegrante;
+    let fechaBaja = datos.fechaBaja || null;
+    let idsDirecciones = [];
+    let comparteDomicilioTitular = false;
 
     if (parentesco === 'Titular') {
       numeroAfiliado = await obtenerSiguienteNumeroAfiliado();
@@ -137,6 +146,22 @@ const crearAfiliado = async (datos) => {
       }
 
       numeroAfiliado = titular.numeroAfiliado;
+      if (titular.fechaBaja) {
+        fechaBaja = titular.fechaBaja;
+      }
+
+      comparteDomicilioTitular = Boolean(datos.comparteDomicilioTitular);
+      if (comparteDomicilioTitular) {
+        idsDirecciones = obtenerIdsDirecciones(titular);
+        if (!idsDirecciones.length) {
+          throw new ErrorAplicacion(
+            'El titular no tiene un domicilio disponible para compartir',
+            409,
+            'TITULAR_SIN_DOMICILIO'
+          );
+        }
+      }
+
       const ultimoFamiliar = await Afiliado.findOne({ numeroAfiliado }).sort({
         numeroIntegrante: -1,
       });
@@ -152,6 +177,17 @@ const crearAfiliado = async (datos) => {
       }
     }
 
+    if (!idsDirecciones.length) {
+      const direccionesInformadas =
+        Array.isArray(datos.direcciones) && datos.direcciones.length
+          ? datos.direcciones
+          : [datos.direccion].filter(Boolean);
+      idsDirecciones = await crearDirecciones(
+        direccionesInformadas,
+        direccionesCreadas
+      );
+    }
+
     const afiliado = await Afiliado.create({
       nombre: datos.nombre,
       apellido: datos.apellido,
@@ -164,11 +200,12 @@ const crearAfiliado = async (datos) => {
       situacionesTerapeuticas: datos.situacionesTerapeuticas || [],
       emails: datos.emails || [],
       telefonos: datos.telefonos || [],
-      direccionId: direccionesCreadas[0]._id,
-      direccionesIds: direccionesCreadas.map((direccion) => direccion._id),
+      direccionId: idsDirecciones[0],
+      direccionesIds: idsDirecciones,
+      comparteDomicilioTitular,
       plan: datos.plan,
       fechaAlta: datos.fechaAlta ? new Date(datos.fechaAlta) : new Date(),
-      fechaBaja: datos.fechaBaja || null,
+      fechaBaja,
       afiliadoTitularId: datos.afiliadoTitularId || null,
     });
 
@@ -242,6 +279,91 @@ const actualizarVigenciaGrupoFamiliar = async (afiliadoActual, datos) => {
   return Afiliado.findById(afiliadoActual._id);
 };
 
+const propagarFechaBajaDelTitular = async (
+  afiliadoActual,
+  afiliadoActualizado,
+  datos
+) => {
+  const cambiaFechaBaja = Object.prototype.hasOwnProperty.call(
+    datos,
+    'fechaBaja'
+  );
+  if (afiliadoActual.parentesco !== 'Titular' || !cambiaFechaBaja) return;
+
+  await Afiliado.updateMany(
+    { afiliadoTitularId: afiliadoActual._id },
+    { $set: { fechaBaja: afiliadoActualizado.fechaBaja || null } },
+    { runValidators: true }
+  );
+};
+
+const prepararDomicilioCompartido = async (
+  afiliadoActual,
+  datos,
+  cambios,
+  idsDireccionesAnteriores
+) => {
+  if (afiliadoActual.parentesco === 'Titular') return false;
+
+  const solicitaCompartir = datos.comparteDomicilioTitular === true;
+  const dejaDeCompartir = datos.comparteDomicilioTitular === false;
+  const modificaDirecciones =
+    (Array.isArray(datos.direcciones) && datos.direcciones.length > 0) ||
+    Boolean(datos.direccion);
+
+  if (afiliadoActual.comparteDomicilioTitular && modificaDirecciones && !dejaDeCompartir) {
+    throw new ErrorAplicacion(
+      'El domicilio compartido solo puede modificarse desde el titular. Elegí usar domicilio propio para independizarlo.',
+      409,
+      'DOMICILIO_COMPARTIDO_SOLO_TITULAR'
+    );
+  }
+
+  if (!solicitaCompartir) return false;
+
+  const titular = await Afiliado.findById(afiliadoActual.afiliadoTitularId);
+  if (!titular) {
+    throw new ErrorAplicacion(
+      'No se encontró el titular del grupo familiar',
+      404,
+      'TITULAR_NO_ENCONTRADO'
+    );
+  }
+
+  const idsTitular = obtenerIdsDirecciones(titular);
+  if (!idsTitular.length) {
+    throw new ErrorAplicacion(
+      'El titular no tiene un domicilio disponible para compartir',
+      409,
+      'TITULAR_SIN_DOMICILIO'
+    );
+  }
+
+  idsDireccionesAnteriores.push(...obtenerIdsDirecciones(afiliadoActual).map(String));
+  cambios.direccionId = idsTitular[0];
+  cambios.direccionesIds = idsTitular;
+  cambios.comparteDomicilioTitular = true;
+  delete cambios.direccion;
+  delete cambios.direcciones;
+  return true;
+};
+
+const propagarDomicilioDelTitular = async (titular, idsDirecciones) => {
+  await Afiliado.updateMany(
+    {
+      afiliadoTitularId: titular._id,
+      comparteDomicilioTitular: true,
+    },
+    {
+      $set: {
+        direccionId: idsDirecciones[0],
+        direccionesIds: idsDirecciones,
+      },
+    },
+    { runValidators: true }
+  );
+};
+
 const actualizarAfiliado = async (id, datos) => {
   const afiliadoActual = await Afiliado.findById(id);
   if (!afiliadoActual) {
@@ -263,34 +385,39 @@ const actualizarAfiliado = async (id, datos) => {
   const situacionesAnteriores = afiliadoActual.situacionesTerapeuticas.map(String);
   const cambios = { ...datos };
   delete cambios.aplicarAGrupoFamiliar;
-  delete cambios.direccion;
-  delete cambios.direcciones;
   delete cambios.numeroAfiliado;
   delete cambios.numeroIntegrante;
   delete cambios.afiliadoTitularId;
   delete cambios.parentesco;
 
   const direccionesNuevas = [];
-  let idsDireccionesAnteriores = [];
+  const idsDireccionesAnteriores = [];
 
   try {
-    if (Array.isArray(datos.direcciones) && datos.direcciones.length) {
-      idsDireccionesAnteriores = afiliadoActual.direccionesIds?.length
-        ? afiliadoActual.direccionesIds.map(String)
-        : [afiliadoActual.direccionId].filter(Boolean).map(String);
+    const ahoraComparte = await prepararDomicilioCompartido(
+      afiliadoActual,
+      datos,
+      cambios,
+      idsDireccionesAnteriores
+    );
 
-      for (const direccionInformada of datos.direcciones) {
-        direccionesNuevas.push(await crearDireccion(direccionInformada));
+    if (!ahoraComparte && Array.isArray(datos.direcciones) && datos.direcciones.length) {
+      idsDireccionesAnteriores.push(
+        ...obtenerIdsDirecciones(afiliadoActual).map(String)
+      );
+
+      const idsNuevas = await crearDirecciones(datos.direcciones, direccionesNuevas);
+      cambios.direccionId = idsNuevas[0];
+      cambios.direccionesIds = idsNuevas;
+      if (afiliadoActual.parentesco !== 'Titular') {
+        cambios.comparteDomicilioTitular = false;
       }
-
-      cambios.direccionId = direccionesNuevas[0]._id;
-      cambios.direccionesIds = direccionesNuevas.map(
-        (direccion) => direccion._id
+      delete cambios.direcciones;
+    } else if (!ahoraComparte && datos.direccion) {
+      idsDireccionesAnteriores.push(
+        ...obtenerIdsDirecciones(afiliadoActual).map(String)
       );
-    } else if (datos.direccion) {
-      const direccionActual = await Direccion.findById(
-        afiliadoActual.direccionId
-      );
+      const direccionActual = await Direccion.findById(afiliadoActual.direccionId);
       if (!direccionActual) {
         throw new ErrorAplicacion(
           'Dirección principal no encontrada',
@@ -303,28 +430,30 @@ const actualizarAfiliado = async (id, datos) => {
         obtenerDatosDireccion(direccionActual, datos.direccion)
       );
       direccionesNuevas.push(direccionNueva);
-      idsDireccionesAnteriores = [String(direccionActual._id)];
       cambios.direccionId = direccionNueva._id;
-
-      const idsActuales = afiliadoActual.direccionesIds?.length
-        ? afiliadoActual.direccionesIds.map(String)
-        : [String(direccionActual._id)];
-      let reemplazada = false;
-      const idsActualizados = idsActuales.map((idDireccion) => {
-        if (idDireccion === String(direccionActual._id)) {
-          reemplazada = true;
-          return direccionNueva._id;
-        }
-        return idDireccion;
-      });
-      if (!reemplazada) idsActualizados.unshift(direccionNueva._id);
-      cambios.direccionesIds = idsActualizados;
+      cambios.direccionesIds = [direccionNueva._id];
+      if (afiliadoActual.parentesco !== 'Titular') {
+        cambios.comparteDomicilioTitular = false;
+      }
+      delete cambios.direccion;
     }
 
     const afiliado = await Afiliado.findByIdAndUpdate(id, cambios, {
       new: true,
       runValidators: true,
     });
+
+    if (
+      afiliadoActual.parentesco === 'Titular' &&
+      direccionesNuevas.length > 0
+    ) {
+      await propagarDomicilioDelTitular(
+        afiliado,
+        obtenerIdsDirecciones(afiliado)
+      );
+    }
+
+    await propagarFechaBajaDelTitular(afiliadoActual, afiliado, datos);
 
     if (idsDireccionesAnteriores.length) {
       await eliminarDireccionesSinReferencias(idsDireccionesAnteriores);
@@ -352,4 +481,8 @@ const actualizarAfiliado = async (id, datos) => {
   }
 };
 
-module.exports = { crearAfiliado, actualizarAfiliado };
+module.exports = {
+  crearAfiliado,
+  actualizarAfiliado,
+  eliminarDireccionesSinReferencias,
+};

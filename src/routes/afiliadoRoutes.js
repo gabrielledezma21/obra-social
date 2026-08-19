@@ -4,6 +4,8 @@ const {
   genericMiddleware: intermediarioGenerico,
   afiliadoMiddleware: intermediarioAfiliado,
 } = require('../middlewares');
+const validarDomicilioCompartido = require('../middlewares/validarDomicilioCompartido');
+const validarDomicilioPropio = require('../middlewares/validarDomicilioPropio');
 const { Afiliado, Direccion } = require('../models');
 
 const rutas = Router();
@@ -103,6 +105,8 @@ rutas.put(
     }
   */
   existeModeloPorId(Afiliado),
+  validarDomicilioPropio,
+  validarDomicilioCompartido,
   controladorAfiliado.actualizarAfiliado
 );
 
