@@ -15,6 +15,7 @@ const disponibilidadTurnosRutas = require('./routes/disponibilidadTurnosRutas');
 const portalAfiliadoRutas = require('./routes/portalAfiliadoRutas');
 const portalPrestadorRutas = require('./routes/portalPrestadorRutas');
 const reporteRutas = require('./routes/reporteRutas');
+const turnosAfiliadoRutas = require('./routes/turnosAfiliadoRutas');
 const turnosPublicosRutas = require('./routes/turnosPublicosRutas');
 const { logRequest: registrarPeticion } = require('./middlewares/genericMiddleware');
 const {
@@ -117,6 +118,11 @@ const configurarAplicacion = (aplicacion) => {
   );
   aplicacion.use('/reportes', ...protegerAdministracion, reporteRutas);
 
+  aplicacion.use(
+    '/portal-afiliado',
+    ...protegerPortalAfiliado,
+    turnosAfiliadoRutas
+  );
   aplicacion.use(
     '/portal-afiliado',
     ...protegerPortalAfiliado,
