@@ -15,6 +15,7 @@ const disponibilidadTurnosRutas = require('./routes/disponibilidadTurnosRutas');
 const portalAfiliadoRutas = require('./routes/portalAfiliadoRutas');
 const portalPrestadorRutas = require('./routes/portalPrestadorRutas');
 const reporteRutas = require('./routes/reporteRutas');
+const turnosPublicosRutas = require('./routes/turnosPublicosRutas');
 const { logRequest: registrarPeticion } = require('./middlewares/genericMiddleware');
 const {
   autenticar,
@@ -102,6 +103,7 @@ const configurarAplicacion = (aplicacion) => {
 
   aplicacion.use(asegurarBaseDatos);
   aplicacion.use(registrarPeticion);
+  aplicacion.use('/publico/turnos', turnosPublicosRutas);
   aplicacion.use('/autenticacion', autenticacionRutas);
 
   aplicacion.use('/prestadores', ...protegerAdministracion, prestadorRutas);
