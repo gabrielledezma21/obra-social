@@ -7,7 +7,9 @@ const {
   esFechaValida,
   formatearFechaPersistida,
   obtenerClaveDia,
+  obtenerFechaActualArgentina,
   obtenerRangoDiaUtc,
+  sumarDias,
 } = require('../utils/fechaTurnos');
 const {
   generarCodigoReserva,
@@ -23,12 +25,20 @@ const {
 
 const ANTICIPACION_MINIMA_MS = 24 * 60 * 60 * 1000;
 const INTENTOS_CODIGO_UNICO = 12;
+const HORIZONTE_REAGENDAMIENTO_DIAS = 42;
+const LIMITE_HORARIOS_PREDETERMINADO = 30;
+const LIMITE_HORARIOS_MAXIMO = 80;
 
 const convertirAMinutos = (valor) => {
   if (typeof valor === 'number') return valor;
   const [horas, minutos] = String(valor || '').split(':').map(Number);
   return horas * 60 + minutos;
 };
+
+const convertirAHora = (minutosTotales) =>
+  `${String(Math.floor(minutosTotales / 60)).padStart(2, '0')}:${String(
+    minutosTotales % 60
+  ).padStart(2, '0')}`;
 
 const obtenerId = (valor) => valor?._id || valor;
 
@@ -37,12 +47,20 @@ const normalizarCodigoReserva = (codigo) =>
 
 const validarHorarioAgenda = (agenda, valorFecha, hora) => {
   if (!esFechaValida(valorFecha)) {
-    throw new ErrorAplicacion('Fecha de turno inválida', 400, 'FECHA_TURNO_INVALIDA');
+    throw new ErrorAplicacion(
+      'Fecha de turno inválida',
+      400,
+      'FECHA_TURNO_INVALIDA'
+    );
   }
 
   const fechaHoraTurno = crearFechaHoraArgentina(valorFecha, hora);
   if (!fechaHoraTurno) {
-    throw new ErrorAplicacion('Hora de turno inválida', 400, 'HORA_TURNO_INVALIDA');
+    throw new ErrorAplicacion(
+      'Hora de turno inválida',
+      400,
+      'HORA_TURNO_INVALIDA'
+    );
   }
 
   const dia = agenda.horario?.dias?.[obtenerClaveDia(valorFecha)];
@@ -154,9 +172,9 @@ const obtenerAfiliadoParaCorreo = async (turno) => {
 
   if (afiliadoTurno.emails?.[0]?.direccion) return afiliadoTurno;
 
-  const reservadoPor = await Afiliado.findById(turno.reservadoPorAfiliadoId).select(
-    'emails'
-  );
+  const reservadoPor = await Afiliado.findById(
+    turno.reservadoPorAfiliadoId
+  ).select('emails');
   const correoAlternativo = reservadoPor?.emails?.[0]?.direccion;
   if (!correoAlternativo) return afiliadoTurno;
 
@@ -205,18 +223,30 @@ const crearTurno = async ({
 }) => {
   const agenda = await cargarAgendaCompleta(agendaId);
   if (!agenda) {
-    throw new ErrorAplicacion('Agenda no encontrada', 404, 'AGENDA_NO_ENCONTRADA');
+    throw new ErrorAplicacion(
+      'Agenda no encontrada',
+      404,
+      'AGENDA_NO_ENCONTRADA'
+    );
   }
 
   const afiliado = await Afiliado.exists({ _id: afiliadoId });
   if (!afiliado) {
-    throw new ErrorAplicacion('Afiliado no encontrado', 404, 'AFILIADO_NO_ENCONTRADO');
+    throw new ErrorAplicacion(
+      'Afiliado no encontrado',
+      404,
+      'AFILIADO_NO_ENCONTRADO'
+    );
   }
 
   const fechaTexto = String(fecha || '').slice(0, 10);
   const horaTexto = String(hora || '');
   validarHorarioAgenda(agenda, fechaTexto, horaTexto);
-  await validarDisponibilidad({ agendaId: agenda._id, fecha: fechaTexto, hora: horaTexto });
+  await validarDisponibilidad({
+    agendaId: agenda._id,
+    fecha: fechaTexto,
+    hora: horaTexto,
+  });
 
   const credenciales = await generarCredencialesUnicas();
   const fechaPersistida = crearFechaPersistencia(fechaTexto);
@@ -351,7 +381,10 @@ const cancelarTurnoDocumento = async ({
 };
 
 const cancelarTurnoPublico = async ({ codigoReserva, tokenGestion }) => {
-  const turno = await buscarTurnoConCredenciales({ codigoReserva, tokenGestion });
+  const turno = await buscarTurnoConCredenciales({
+    codigoReserva,
+    tokenGestion,
+  });
   return cancelarTurnoDocumento({
     turno,
     actorTipo: 'PUBLICO',
@@ -360,7 +393,11 @@ const cancelarTurnoPublico = async ({ codigoReserva, tokenGestion }) => {
   });
 };
 
-const cancelarTurnoAutenticado = async ({ turnoId, afiliadosGestionables, actorId }) => {
+const cancelarTurnoAutenticado = async ({
+  turnoId,
+  afiliadosGestionables,
+  actorId,
+}) => {
   const turno = await Turno.findOne({
     _id: turnoId,
     afiliadoId: { $in: afiliadosGestionables },
@@ -368,7 +405,11 @@ const cancelarTurnoAutenticado = async ({ turnoId, afiliadosGestionables, actorI
   });
 
   if (!turno) {
-    throw new ErrorAplicacion('Turno no encontrado', 404, 'TURNO_NO_ENCONTRADO');
+    throw new ErrorAplicacion(
+      'Turno no encontrado',
+      404,
+      'TURNO_NO_ENCONTRADO'
+    );
   }
 
   return cancelarTurnoDocumento({
@@ -379,18 +420,104 @@ const cancelarTurnoAutenticado = async ({ turnoId, afiliadosGestionables, actorI
   });
 };
 
+const obtenerDisponibilidadReagendamientoPublica = async ({
+  codigoReserva,
+  tokenGestion,
+  limite = LIMITE_HORARIOS_PREDETERMINADO,
+}) => {
+  const turno = await buscarTurnoConCredenciales({
+    codigoReserva,
+    tokenGestion,
+  });
+  validarTurnoGestionable(turno, 'reagendar');
+
+  const agenda = turno.agendaId;
+  if (!agenda?.horario) {
+    throw new ErrorAplicacion(
+      'Agenda no encontrada',
+      404,
+      'AGENDA_NO_ENCONTRADA'
+    );
+  }
+
+  const limiteNumerico = Number(limite);
+  const cantidadMaxima = Number.isInteger(limiteNumerico) && limiteNumerico > 0
+    ? Math.min(limiteNumerico, LIMITE_HORARIOS_MAXIMO)
+    : LIMITE_HORARIOS_PREDETERMINADO;
+
+  const hoy = obtenerFechaActualArgentina();
+  const fechas = [];
+  for (
+    let desplazamiento = 0;
+    desplazamiento <= HORIZONTE_REAGENDAMIENTO_DIAS;
+    desplazamiento += 1
+  ) {
+    fechas.push(sumarDias(hoy, desplazamiento));
+  }
+
+  const primerRango = obtenerRangoDiaUtc(fechas[0]);
+  const ultimoRango = obtenerRangoDiaUtc(fechas[fechas.length - 1]);
+  const agendaId = obtenerId(agenda);
+  const ocupados = await Turno.find({
+    agendaId,
+    fecha: { $gte: primerRango.inicio, $lt: ultimoRango.fin },
+    estado: 'RESERVADO',
+  }).select('fecha hora');
+  const clavesOcupadas = new Set(
+    ocupados.map(
+      (ocupado) => `${formatearFechaPersistida(ocupado.fecha)}:${ocupado.hora}`
+    )
+  );
+
+  const ahora = new Date();
+  const horarios = [];
+  for (const fechaTexto of fechas) {
+    const dia = agenda.horario?.dias?.[obtenerClaveDia(fechaTexto)];
+    if (!dia?.atiende) continue;
+
+    const duracionTurno = Number(agenda.horario?.duracionTurno || 30);
+    for (const bloque of dia.bloques || []) {
+      const inicio = convertirAMinutos(bloque.horaInicio);
+      const fin = convertirAMinutos(bloque.horaFin);
+
+      for (
+        let cursor = inicio;
+        cursor + duracionTurno <= fin;
+        cursor += duracionTurno
+      ) {
+        const hora = convertirAHora(cursor);
+        const fechaHora = crearFechaHoraArgentina(fechaTexto, hora);
+        if (!fechaHora || fechaHora <= ahora) continue;
+        if (clavesOcupadas.has(`${fechaTexto}:${hora}`)) continue;
+
+        horarios.push({ fecha: fechaTexto, hora });
+        if (horarios.length >= cantidadMaxima) return horarios;
+      }
+    }
+  }
+
+  return horarios;
+};
+
 const reagendarTurnoPublico = async ({
   codigoReserva,
   tokenGestion,
   fecha,
   hora,
 }) => {
-  const turno = await buscarTurnoConCredenciales({ codigoReserva, tokenGestion });
+  const turno = await buscarTurnoConCredenciales({
+    codigoReserva,
+    tokenGestion,
+  });
   validarTurnoGestionable(turno, 'reagendar');
 
   const agenda = await cargarAgendaCompleta(obtenerId(turno.agendaId));
   if (!agenda) {
-    throw new ErrorAplicacion('Agenda no encontrada', 404, 'AGENDA_NO_ENCONTRADA');
+    throw new ErrorAplicacion(
+      'Agenda no encontrada',
+      404,
+      'AGENDA_NO_ENCONTRADA'
+    );
   }
 
   const fechaTexto = String(fecha || '').slice(0, 10);
@@ -444,11 +571,13 @@ const reagendarTurnoPublico = async ({
 const serializarTurnoPublico = (turno) => {
   const agenda = turno.agendaId;
   const direccion = agenda?.centroDeAtencionId?.direccionId;
+  const fechaTexto = formatearFechaPersistida(turno.fecha);
+  const fechaHora = crearFechaHoraArgentina(fechaTexto, turno.hora);
 
   return {
     codigoReserva: turno.codigoReserva,
     estado: turno.estado,
-    fecha: formatearFechaPersistida(turno.fecha),
+    fecha: fechaTexto,
     hora: turno.hora,
     prestador: turno.prestadorId?.nombre || null,
     especialidad: agenda?.especialidadId?.nombre || null,
@@ -463,10 +592,8 @@ const serializarTurnoPublico = (turno) => {
     puedeGestionarse:
       turno.estado === 'RESERVADO' &&
       Boolean(
-        crearFechaHoraArgentina(
-          formatearFechaPersistida(turno.fecha),
-          turno.hora
-        )?.getTime() - Date.now() >= ANTICIPACION_MINIMA_MS
+        fechaHora &&
+          fechaHora.getTime() - Date.now() >= ANTICIPACION_MINIMA_MS
       ),
   };
 };
@@ -476,6 +603,7 @@ module.exports = {
   cancelarTurnoAutenticado,
   cancelarTurnoPublico,
   crearTurno,
+  obtenerDisponibilidadReagendamientoPublica,
   reagendarTurnoPublico,
   serializarTurnoPublico,
   validarHorarioAgenda,
