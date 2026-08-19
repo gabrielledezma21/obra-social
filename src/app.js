@@ -11,10 +11,13 @@ const {
   situacionTerapeuticaRutas,
 } = require('./routes');
 const autenticacionRutas = require('./routes/autenticacionRutas');
+const autogestionTurnosRutas = require('./routes/autogestionTurnosRutas');
 const disponibilidadTurnosRutas = require('./routes/disponibilidadTurnosRutas');
+const gestionTurnosAfiliadoRutas = require('./routes/gestionTurnosAfiliadoRutas');
 const portalAfiliadoRutas = require('./routes/portalAfiliadoRutas');
 const portalPrestadorRutas = require('./routes/portalPrestadorRutas');
 const reporteRutas = require('./routes/reporteRutas');
+const turnosAdministracionRutas = require('./routes/turnosAdministracionRutas');
 const { logRequest: registrarPeticion } = require('./middlewares/genericMiddleware');
 const {
   autenticar,
@@ -103,11 +106,13 @@ const configurarAplicacion = (aplicacion) => {
   aplicacion.use(asegurarBaseDatos);
   aplicacion.use(registrarPeticion);
   aplicacion.use('/autenticacion', autenticacionRutas);
+  aplicacion.use('/autogestion-turnos', autogestionTurnosRutas);
 
   aplicacion.use('/prestadores', ...protegerAdministracion, prestadorRutas);
   aplicacion.use('/especialidades', ...protegerAdministracion, especialidadRutas);
   aplicacion.use('/agendas', ...protegerAdministracion, agendaRutas);
   aplicacion.use('/afiliados', ...protegerAdministracion, afiliadoRutas);
+  aplicacion.use('/turnos', ...protegerAdministracion, turnosAdministracionRutas);
   aplicacion.use(
     '/situaciones-terapeuticas',
     ...protegerAdministracion,
@@ -119,6 +124,11 @@ const configurarAplicacion = (aplicacion) => {
     '/portal-afiliado',
     ...protegerPortalAfiliado,
     disponibilidadTurnosRutas
+  );
+  aplicacion.use(
+    '/portal-afiliado',
+    ...protegerPortalAfiliado,
+    gestionTurnosAfiliadoRutas
   );
   aplicacion.use(
     '/portal-afiliado',
