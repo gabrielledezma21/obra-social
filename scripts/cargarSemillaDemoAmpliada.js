@@ -18,9 +18,110 @@ const DISTRIBUCION_ALTAS = {
   '2026-03': { '210': 4, '310': 3, '410': 4, '510': 2 },
 };
 
+const ESPECIALIDADES_ADICIONALES = [
+  'Oftalmologia',
+  'Neurologia',
+  'Psiquiatria',
+  'Otorrinolaringologia',
+  'Endocrinologia',
+  'Gastroenterologia',
+  'Urologia',
+  'Kinesiologia',
+  'Nutricion',
+  'Odontologia',
+  'Reumatologia',
+  'Neumonologia',
+];
+
+const SITUACIONES_ADICIONALES = [
+  'Hipotiroidismo',
+  'Migraña',
+  'Alergia estacional',
+  'Lumbalgia cronica',
+  'Colesterol elevado',
+  'Ansiedad',
+];
+
+const PERSONAS_DEMO = [
+  ['Valentina', 'Acosta'],
+  ['Mateo', 'Benitez'],
+  ['Camila', 'Cabrera'],
+  ['Joaquin', 'Dominguez'],
+  ['Martina', 'Escobar'],
+  ['Bautista', 'Fernandez'],
+  ['Renata', 'Gimenez'],
+  ['Tomas', 'Herrera'],
+  ['Catalina', 'Ibarra'],
+  ['Santino', 'Juarez'],
+  ['Emilia', 'Ledesma'],
+  ['Felipe', 'Molina'],
+  ['Julieta', 'Navarro'],
+  ['Franco', 'Ortega'],
+  ['Malena', 'Pereyra'],
+  ['Thiago', 'Quiroga'],
+  ['Josefina', 'Romero'],
+  ['Bruno', 'Sosa'],
+  ['Alma', 'Torres'],
+  ['Lautaro', 'Vega'],
+  ['Mia', 'Aguirre'],
+  ['Benjamin', 'Correa'],
+  ['Olivia', 'Medina'],
+  ['Lucas', 'Roldan'],
+];
+
+const LOCALIDADES_DEMO = [
+  ['Moron', '1708'],
+  ['Haedo', '1706'],
+  ['Ramos Mejia', '1704'],
+  ['San Isidro', '1642'],
+  ['CABA', '1000'],
+];
+
+const CALLES_DEMO = [
+  'Belgrano',
+  'Mitre',
+  'Sarmiento',
+  'Las Heras',
+  'San Martin',
+  'Rivadavia',
+  'Alvear',
+  'Brown',
+];
+
 const crearFechaAlta = (mes, indice) => {
   const dia = String(5 + (indice % 20)).padStart(2, '0');
   return new Date(`${mes}-${dia}T12:00:00.000Z`);
+};
+
+const cargarCatalogosAdicionales = async () => {
+  const especialidadesExistentes = new Set(
+    (await Especialidad.find()).map((especialidad) => especialidad.nombre)
+  );
+  const nuevasEspecialidades = ESPECIALIDADES_ADICIONALES.filter(
+    (nombre) => !especialidadesExistentes.has(nombre)
+  );
+  if (nuevasEspecialidades.length) {
+    await Especialidad.create(
+      nuevasEspecialidades.map((nombre) => ({ nombre }))
+    );
+  }
+
+  const situacionesExistentes = new Set(
+    (await SituacionTerapeutica.find()).map((situacion) => situacion.nombre)
+  );
+  const nuevasSituaciones = SITUACIONES_ADICIONALES.filter(
+    (nombre) => !situacionesExistentes.has(nombre)
+  );
+  if (nuevasSituaciones.length) {
+    await SituacionTerapeutica.create(
+      nuevasSituaciones.map((nombre) => ({ nombre }))
+    );
+  }
+
+  return {
+    especialidades: await Especialidad.countDocuments(),
+    situaciones: await SituacionTerapeutica.countDocuments(),
+  };
 };
 
 const cargarAfiliadosMensuales = async () => {
@@ -32,13 +133,13 @@ const cargarAfiliadosMensuales = async () => {
     for (const [plan, cantidad] of Object.entries(planes)) {
       for (let indice = 0; indice < cantidad; indice += 1) {
         secuencia += 1;
+        const [localidad, codigoPostal] =
+          LOCALIDADES_DEMO[(secuencia - 1) % LOCALIDADES_DEMO.length];
         direcciones.push({
-          calle: `Calle Demo ${secuencia}`,
-          altura: 100 + secuencia,
-          localidad: ['Moron', 'Haedo', 'Ramos Mejia', 'San Isidro'][
-            secuencia % 4
-          ],
-          codigoPostal: ['1708', '1706', '1704', '1642'][secuencia % 4],
+          calle: CALLES_DEMO[(secuencia - 1) % CALLES_DEMO.length],
+          altura: 200 + secuencia * 17,
+          localidad,
+          codigoPostal,
           provincia: 'Buenos Aires',
         });
         plantillas.push({ mes, plan, indice, secuencia });
@@ -47,28 +148,36 @@ const cargarAfiliadosMensuales = async () => {
   }
 
   const direccionesCreadas = await Direccion.create(direcciones);
-  const afiliados = await Afiliado.create(
-    plantillas.map(({ mes, plan, indice, secuencia }, posicion) => ({
-      nombre: `Demo${secuencia}`,
-      apellido: `Plan${plan}`,
-      fechaNacimiento: new Date(
-        `19${80 + (secuencia % 18)}-06-15T12:00:00.000Z`
-      ),
-      tipoDocumento: 'DNI',
-      dni: 50000000 + secuencia,
-      numeroAfiliado: 3000 + secuencia,
-      numeroIntegrante: 1,
-      parentesco: 'Titular',
-      emails: [{ direccion: `demo${secuencia}@medintegral.com` }],
-      telefonos: [{ numero: String(1160000000 + secuencia) }],
-      direccionId: direccionesCreadas[posicion]._id,
-      direccionesIds: [direccionesCreadas[posicion]._id],
-      plan,
-      fechaAlta: crearFechaAlta(mes, indice),
-    }))
+  return Afiliado.create(
+    plantillas.map(({ mes, plan, indice, secuencia }, posicion) => {
+      const [nombre, apellido] = PERSONAS_DEMO[posicion % PERSONAS_DEMO.length];
+      return {
+        nombre,
+        apellido,
+        fechaNacimiento: new Date(
+          `19${70 + (secuencia % 28)}-${String(1 + (secuencia % 12)).padStart(
+            2,
+            '0'
+          )}-15T12:00:00.000Z`
+        ),
+        tipoDocumento: 'DNI',
+        dni: 50000000 + secuencia,
+        numeroAfiliado: 3000 + secuencia,
+        numeroIntegrante: 1,
+        parentesco: 'Titular',
+        emails: [
+          {
+            direccion: `${nombre}.${apellido}${secuencia}@medintegral.com`.toLowerCase(),
+          },
+        ],
+        telefonos: [{ numero: String(1160000000 + secuencia) }],
+        direccionId: direccionesCreadas[posicion]._id,
+        direccionesIds: [direccionesCreadas[posicion]._id],
+        plan,
+        fechaAlta: crearFechaAlta(mes, indice),
+      };
+    })
   );
-
-  return afiliados;
 };
 
 const cargarGrupoFamiliar = async () => {
@@ -125,7 +234,7 @@ const cargarGrupoFamiliar = async () => {
       numeroAfiliado: 9900,
       numeroIntegrante: 2,
       parentesco: 'Conyuge',
-      situacionesTerapeuticas: situaciones[1] ? [situaciones[1]._id] : [],
+      situacionesTerapeuticas: situaciones[4] ? [situaciones[4]._id] : [],
       emails: [{ direccion: 'martin.prueba@medintegral.com' }],
       telefonos: [{ numero: '1169990002' }],
       direccionId: direcciones[1]._id,
@@ -143,7 +252,7 @@ const cargarGrupoFamiliar = async () => {
       numeroAfiliado: 9900,
       numeroIntegrante: 3,
       parentesco: 'Hijo',
-      situacionesTerapeuticas: situaciones[2] ? [situaciones[2]._id] : [],
+      situacionesTerapeuticas: situaciones[7] ? [situaciones[7]._id] : [],
       emails: [{ direccion: 'sofia.prueba@medintegral.com' }],
       telefonos: [{ numero: '1169990003' }],
       direccionId: direcciones[2]._id,
@@ -183,39 +292,93 @@ const cargarPrestadoresAdicionales = async () => {
     );
   }
 
-  const buscarEspecialidad = (nombre) =>
-    especialidades.find((especialidad) => especialidad.nombre === nombre) ||
-    especialidades[0];
+  const buscarEspecialidad = (nombre) => {
+    const especialidad = especialidades.find((item) => item.nombre === nombre);
+    if (!especialidad) throw new Error(`Especialidad demo inexistente: ${nombre}`);
+    return especialidad;
+  };
 
   const buscarCentro = (localidad) =>
     centros.find((centro) => centro.direccionId?.localidad === localidad) ||
     centros[0];
 
   const configuraciones = [
-    ['Cardiologia', 'Moron'],
-    ['Cardiologia', 'Moron'],
-    ['Cardiologia', 'Moron'],
-    ['Cardiologia', 'Haedo'],
-    ['Clinica Medica', 'Moron'],
-    ['Clinica Medica', 'Moron'],
-    ['Clinica Medica', 'Ramos Mejia'],
-    ['Pediatria', 'Haedo'],
-    ['Pediatria', 'Haedo'],
-    ['Dermatologia', 'Ramos Mejia'],
-    ['Traumatologia', 'San Isidro'],
-    ['Ginecologia', 'Moron'],
+    {
+      nombre: 'Dra. Agustina Rios',
+      especialidades: ['Cardiologia', 'Clinica Medica'],
+      localidad: 'Moron',
+    },
+    {
+      nombre: 'Dr. Nicolas Suarez',
+      especialidades: ['Neurologia'],
+      localidad: 'CABA',
+    },
+    {
+      nombre: 'Dra. Florencia Campos',
+      especialidades: ['Oftalmologia'],
+      localidad: 'Haedo',
+    },
+    {
+      nombre: 'Dr. Ignacio Peralta',
+      especialidades: ['Traumatologia', 'Kinesiologia'],
+      localidad: 'Ramos Mejia',
+    },
+    {
+      nombre: 'Dra. Carla Montes',
+      especialidades: ['Endocrinologia', 'Nutricion'],
+      localidad: 'Moron',
+    },
+    {
+      nombre: 'Dr. Federico Paz',
+      especialidades: ['Gastroenterologia'],
+      localidad: 'San Isidro',
+    },
+    {
+      nombre: 'Dra. Marina Luna',
+      especialidades: ['Pediatria', 'Neumonologia'],
+      localidad: 'Haedo',
+    },
+    {
+      nombre: 'Dr. Sebastian Vera',
+      especialidades: ['Urologia'],
+      localidad: 'CABA',
+    },
+    {
+      nombre: 'Dra. Rocio Salas',
+      especialidades: ['Psiquiatria'],
+      localidad: 'Ramos Mejia',
+    },
+    {
+      nombre: 'Dr. Gonzalo Arias',
+      especialidades: ['Otorrinolaringologia'],
+      localidad: 'Moron',
+    },
+    {
+      nombre: 'Dra. Pilar Costa',
+      especialidades: ['Dermatologia', 'Reumatologia'],
+      localidad: 'San Isidro',
+    },
+    {
+      nombre: 'Centro Odontologico MedIntegral',
+      especialidades: ['Odontologia'],
+      localidad: 'Moron',
+      esCentroMedico: true,
+    },
   ];
 
   return Prestador.create(
-    configuraciones.map(([especialidad, localidad], indice) => ({
-      nombre: `Prestador Demo ${String(indice + 1).padStart(2, '0')}`,
+    configuraciones.map((configuracion, indice) => ({
+      nombre: configuracion.nombre,
       cuilCuit: String(20910000001 + indice),
       emails: [
         { direccion: `prestador.demo${indice + 1}@medintegral.com` },
       ],
       telefonos: [{ numero: String(1171000000 + indice) }],
-      especialidades: [buscarEspecialidad(especialidad)._id],
-      centrosDeAtencion: [buscarCentro(localidad)._id],
+      especialidades: configuracion.especialidades.map(
+        (nombre) => buscarEspecialidad(nombre)._id
+      ),
+      centrosDeAtencion: [buscarCentro(configuracion.localidad)._id],
+      esCentroMedico: Boolean(configuracion.esCentroMedico),
     }))
   );
 };
@@ -230,11 +393,14 @@ const ejecutar = async () => {
   );
   await ejecutarSeedBase({ limpiar: true });
 
+  const catalogos = await cargarCatalogosAdicionales();
   const afiliadosMensuales = await cargarAfiliadosMensuales();
   const grupoFamiliar = await cargarGrupoFamiliar();
   const prestadores = await cargarPrestadoresAdicionales();
 
   console.log('✅ Semilla demo ampliada cargada');
+  console.log(`   Especialidades totales: ${catalogos.especialidades}`);
+  console.log(`   Situaciones terapéuticas totales: ${catalogos.situaciones}`);
   console.log(
     `   Afiliados mensuales adicionales: ${afiliadosMensuales.length}`
   );
