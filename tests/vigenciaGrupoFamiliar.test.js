@@ -27,6 +27,6 @@ test('al cambiar la baja del titular se invalida la cache de todo el grupo', () 
   const controlador = leer('src/controllers/afiliadoController.js');
 
   assert.match(controlador, /const cambiaFechaBaja = Object\.prototype\.hasOwnProperty\.call/);
-  assert.match(controlador, /const afectaGrupo = peticion\.body\.aplicarAGrupoFamiliar \|\| cambiaFechaBaja/);
+  assert.match(controlador, /peticion\.body\.aplicarAGrupoFamiliar\s*\|\|\s*cambiaFechaBaja\s*\|\|\s*cambiaDomicilio/);
   assert.match(controlador, /\{ afiliadoTitularId: afiliadoActual\._id \}/);
 });
