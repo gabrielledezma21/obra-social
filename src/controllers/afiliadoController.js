@@ -224,10 +224,13 @@ const eliminarAfiliado = async (peticion, respuesta) => {
 };
 
 const obtenerIdsGrupoParaCache = async (afiliadoActual, peticion) => {
-  if (
-    !peticion.body.aplicarAGrupoFamiliar ||
-    afiliadoActual?.parentesco !== 'Titular'
-  ) {
+  const cambiaFechaBaja = Object.prototype.hasOwnProperty.call(
+    peticion.body,
+    'fechaBaja'
+  );
+  const afectaGrupo = peticion.body.aplicarAGrupoFamiliar || cambiaFechaBaja;
+
+  if (!afectaGrupo || afiliadoActual?.parentesco !== 'Titular') {
     return [];
   }
 
