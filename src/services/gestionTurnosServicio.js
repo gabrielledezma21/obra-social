@@ -136,7 +136,8 @@ const reagendarTurno = async ({
 
   const fechaAnterior = turno.fecha;
   const horaAnterior = turno.hora;
-  const mismaAgenda = String(turno.agendaId) === String(agenda._id);
+  const agendaActualId = turno.agendaId?._id || turno.agendaId;
+  const mismaAgenda = String(agendaActualId) === String(agenda._id);
   const mismaFecha = formatearFechaPersistida(turno.fecha) === fechaTexto;
   if (mismaAgenda && mismaFecha && turno.hora === horaTexto) {
     throw new ErrorAplicacion('El nuevo turno coincide con el actual', 409);
@@ -208,6 +209,17 @@ const obtenerTurnoPorCredenciales = async (codigoReserva, tokenGestion) => {
   return turno;
 };
 
+const serializarHistorialPublico = (historial = []) =>
+  historial.map((entrada) => ({
+    accion: entrada.accion,
+    fechaAnterior: entrada.fechaAnterior,
+    horaAnterior: entrada.horaAnterior,
+    fechaNueva: entrada.fechaNueva,
+    horaNueva: entrada.horaNueva,
+    motivo: entrada.motivo,
+    registradoEn: entrada.registradoEn,
+  }));
+
 const serializarTurnoGestion = (turno) => ({
   id: turno._id,
   codigoReserva: turno.codigoReserva,
@@ -233,7 +245,7 @@ const serializarTurnoGestion = (turno) => ({
         centro: turno.agendaId.centroDeAtencionId || null,
       }
     : null,
-  historial: turno.historial || [],
+  historial: serializarHistorialPublico(turno.historial),
 });
 
 const obtenerDisponibilidadMismaAgenda = async (turno, limiteSolicitado) => {
@@ -280,7 +292,13 @@ const obtenerDisponibilidadMismaAgenda = async (turno, limiteSolicitado) => {
       ) {
         const hora = convertirAHora(cursor);
         const fechaHora = crearFechaHoraArgentina(fecha, hora);
-        if (!fechaHora || fechaHora <= ahora || horasOcupadas.has(hora)) continue;
+        if (
+          !fechaHora ||
+          fechaHora.getTime() - ahora.getTime() < ANTICIPACION_MINIMA_MS ||
+          horasOcupadas.has(hora)
+        ) {
+          continue;
+        }
 
         const mismaFecha = formatearFechaPersistida(turno.fecha) === fecha;
         if (mismaFecha && turno.hora === hora) continue;
