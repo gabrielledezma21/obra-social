@@ -1,5 +1,37 @@
 const { mongoose } = require('../config/db');
 
+const esquemaHistorialTurno = new mongoose.Schema(
+  {
+    accion: {
+      type: String,
+      required: true,
+      enum: [
+        'CREADO',
+        'REAGENDADO',
+        'CANCELADO',
+        'ATENDIDO',
+        'CREDENCIALES_REGENERADAS',
+      ],
+    },
+    fecha: { type: Date, default: Date.now, required: true },
+    actorTipo: {
+      type: String,
+      required: true,
+      enum: ['AFILIADO', 'ADMIN', 'PRESTADOR', 'PUBLICO', 'SISTEMA'],
+    },
+    actorId: {
+      type: mongoose.Schema.Types.ObjectId,
+      default: null,
+    },
+    fechaAnterior: { type: Date, default: null },
+    horaAnterior: { type: String, default: null },
+    fechaNueva: { type: Date, default: null },
+    horaNueva: { type: String, default: null },
+    motivo: { type: String, trim: true, default: null },
+  },
+  { _id: false }
+);
+
 const esquemaTurno = new mongoose.Schema({
   agendaId: {
     type: mongoose.Schema.Types.ObjectId,
@@ -34,6 +66,23 @@ const esquemaTurno = new mongoose.Schema({
     type: String,
     enum: ['RESERVADO', 'CANCELADO', 'ATENDIDO'],
     default: 'RESERVADO',
+  },
+  codigoReserva: {
+    type: String,
+    trim: true,
+    uppercase: true,
+    unique: true,
+    sparse: true,
+  },
+  tokenGestionHash: {
+    type: String,
+    default: null,
+    select: false,
+  },
+  tokenGestionGeneradoEn: { type: Date, default: null },
+  historial: {
+    type: [esquemaHistorialTurno],
+    default: [],
   },
 }, {
   timestamps: { createdAt: 'creadoEn', updatedAt: 'actualizadoEn' },
