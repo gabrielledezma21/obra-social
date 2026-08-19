@@ -61,9 +61,9 @@ const ejecutar = async () => {
   await mongo.conectarDB();
 
   const prestadoresDemo = await Prestador.find({
-    nombre: /^Prestador Demo /,
+    cuilCuit: /^209100000/,
   })
-    .sort({ nombre: 1 })
+    .sort({ cuilCuit: 1 })
     .populate('especialidades')
     .populate('centrosDeAtencion');
 
