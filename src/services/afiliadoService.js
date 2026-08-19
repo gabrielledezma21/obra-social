@@ -116,6 +116,7 @@ const crearAfiliado = async (datos) => {
     const parentesco = datos.parentesco || 'Titular';
     let numeroAfiliado;
     let numeroIntegrante;
+    let fechaBaja = datos.fechaBaja || null;
 
     if (parentesco === 'Titular') {
       numeroAfiliado = await obtenerSiguienteNumeroAfiliado();
@@ -137,6 +138,10 @@ const crearAfiliado = async (datos) => {
       }
 
       numeroAfiliado = titular.numeroAfiliado;
+      if (titular.fechaBaja) {
+        fechaBaja = titular.fechaBaja;
+      }
+
       const ultimoFamiliar = await Afiliado.findOne({ numeroAfiliado }).sort({
         numeroIntegrante: -1,
       });
@@ -168,7 +173,7 @@ const crearAfiliado = async (datos) => {
       direccionesIds: direccionesCreadas.map((direccion) => direccion._id),
       plan: datos.plan,
       fechaAlta: datos.fechaAlta ? new Date(datos.fechaAlta) : new Date(),
-      fechaBaja: datos.fechaBaja || null,
+      fechaBaja,
       afiliadoTitularId: datos.afiliadoTitularId || null,
     });
 
@@ -240,6 +245,17 @@ const actualizarVigenciaGrupoFamiliar = async (afiliadoActual, datos) => {
   );
 
   return Afiliado.findById(afiliadoActual._id);
+};
+
+const propagarFechaBajaDelTitular = async (afiliadoActual, afiliadoActualizado, datos) => {
+  const cambiaFechaBaja = Object.prototype.hasOwnProperty.call(datos, 'fechaBaja');
+  if (afiliadoActual.parentesco !== 'Titular' || !cambiaFechaBaja) return;
+
+  await Afiliado.updateMany(
+    { afiliadoTitularId: afiliadoActual._id },
+    { $set: { fechaBaja: afiliadoActualizado.fechaBaja || null } },
+    { runValidators: true }
+  );
 };
 
 const actualizarAfiliado = async (id, datos) => {
@@ -325,6 +341,8 @@ const actualizarAfiliado = async (id, datos) => {
       new: true,
       runValidators: true,
     });
+
+    await propagarFechaBajaDelTitular(afiliadoActual, afiliado, datos);
 
     if (idsDireccionesAnteriores.length) {
       await eliminarDireccionesSinReferencias(idsDireccionesAnteriores);
