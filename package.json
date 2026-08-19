@@ -9,7 +9,7 @@
     "test": "npm run test:integracion",
     "test:integracion": "node -r dotenv/config scripts/validarMongoPruebas.js && node -r ./scripts/configurarEntornoPruebas.js --test --test-concurrency=1 tests/*.test.js",
     "db": "node src/reiniciarDB.js",
-    "db:demo-ampliada": "node -r dotenv/config scripts/cargarSemillaDemoAmpliada.js",
+    "db:demo-ampliada": "node -r dotenv/config scripts/cargarSemillaDemoAmpliada.js && node -r dotenv/config scripts/completarAgendasDemo.js",
     "crear-admin": "node src/crearAdministrador.js",
     "gendoc": "rm -f swagger-output.json && node swagger.js",
     "start:doc": "npm run gendoc && npm run start"
